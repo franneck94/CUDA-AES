@@ -5,6 +5,7 @@
 #pragma once
 #include <vector>
 #include <iostream>
+#include <bitset>
 
 #include "AES.hpp"
 
@@ -19,39 +20,56 @@ using std::vector;
 // Cout whole ByteArray
 void print_byte_array(ByteArray &arr);
 
-// Modulo operation on galois field polynom
-inline unsigned char reduction(const unsigned char &x)
+// Cout hex byte
+void print_byte(const unsigned char &byte);
+
+// Multiplication with shift and mod in GF(2^8)
+inline unsigned char mul_shift(const unsigned char &x, const unsigned char &y)
 {
-	return (x & 0x80) ? ((x << 1) ^ 0x1b) : (x << 1);
+	unsigned char result;
+
+	if (y == 0x02)
+	{
+		result = (x << 1);
+		if (x & 0x80);
+		{
+			result ^= 0x1b;
+		}
+		return result;
+	}
+	else if (y == 0x03)
+	{
+		result = (x << 1);
+		if (x & 0x80);
+		{
+			result ^= 0x1b;
+		}
+		result ^= x;
+		return result;
+	}
 }
 
-// Adition and subtraction is XOR in GF(2^8)
-inline unsigned char xor(const unsigned char &x, const unsigned char &y)
-{
-	return x ^ y;
-}
-
-// Fast multiplication setup
+// Multiplication with log and exp in GF(2^8)
 inline unsigned char mul(const unsigned char &x, const unsigned char &y)
 {
 	int s;
 	int q;
 	int z = 0;
+
 	s = ltable[x] + ltable[y];
 	s %= 255;
 	s = atable[s];
 	q = s;
-	if (x == 0) {
+
+	if (x == 0)
 		s = z;
-	}
-	else {
+	else 
 		s = q;
-	}
-	if (y == 0) {
+
+	if (y == 0) 
 		s = z;
-	}
-	else {
+	else 
 		q = z;
-	}
+
 	return s;
 }

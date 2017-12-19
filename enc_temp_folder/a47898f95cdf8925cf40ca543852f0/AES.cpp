@@ -110,6 +110,7 @@ ByteArray AES::decrypt(ByteArray &message)
 void AES::key_schedule()
 {
 	register int r;
+	cout << "Starting key schedule!" << endl;
 
 	for (r = 0; r < SUB_KEYS; r++)
 	{
@@ -168,7 +169,7 @@ void AES::byte_sub_inv(ByteArray &message)
 }
 
 // Shift rows - can be parallel
-// B0, B4, B8, B12 stays the same
+// B0, B4, B8, B12 stay the same
 void AES::shift_rows(ByteArray &message)
 {
 	register unsigned char i, j, k, l; 
@@ -194,7 +195,6 @@ void AES::shift_rows(ByteArray &message)
 }
 
 // Inverse shift rows - can be parallel
-// C0, C4, C8, C12 stays the same
 void AES::shift_rows_inv(ByteArray &message)
 {
 	register unsigned char i, j, k, l; 

@@ -35,8 +35,8 @@ public:
 	ByteArray m_decrypted_message;
 
 	// Main functions of AES
-	void encrypt(unsigned char *buffer);
-	void decrypt(unsigned char *buffer);
+	ByteArray encrypt(ByteArray &message);
+	ByteArray decrypt(ByteArray &message);
 
 	// Key schedule functions
 	void key_schedule();
@@ -44,14 +44,14 @@ public:
 
 	// Sub-Layers of AES round
 	// Byte-Sub
-	void byte_sub(ByteArray &buffer);
-	void byte_sub_inv(ByteArray &buffer);
+	void byte_sub(ByteArray &message);
+	void byte_sub_inv(ByteArray &message);
 	// SHift-Rows
-	void shift_rows(unsigned char *buffer);
-	void shift_rows_inv(unsigned char *buffer);
+	void shift_rows(ByteArray &message);
+	void shift_rows_inv(ByteArray &message);
 	// Mix-Col
-	void mix_columns(unsigned char *buffer);
-	void mix_columns_inv(unsigned char *buffer);
+	void mix_columns(ByteArray &message);
+	void mix_columns_inv(ByteArray &message);
 	// Key-Add
-	void key_addition(unsigned char *buffer);
+	void key_addition(ByteArray &message, const int &r);
 };

@@ -20,9 +20,14 @@ void print_byte_array(ByteArray &arr)
 {
 	for (size_t i = 0; i != arr.size(); ++i)
 	{
-		cout << endl << std::hex << (int)arr[i];
-		if (i % 2 == 0)
-			cout << "\t";
+		cout << std::hex << (int)arr[i] << "\t";
 	}
-	cout << endl;
+	cout << endl << endl;
+}
+
+
+// Cout hex byte
+void print_byte(const unsigned char &byte)
+{
+	cout << endl << "Byte: " << std::hex << (int)byte;
 }
