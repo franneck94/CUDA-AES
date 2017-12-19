@@ -111,9 +111,13 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="AES.hpp" />
+    <ClInclude Include="Helper.hpp" />
+    <ClInclude Include="Table.hpp" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="AES.cpp" />
+    <ClCompile Include="Helper.cpp" />
+    <ClCompile Include="main.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

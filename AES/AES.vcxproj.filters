@@ -18,9 +18,21 @@
     <ClInclude Include="AES.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="Helper.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Table.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="AES.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="main.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Helper.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
