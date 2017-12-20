@@ -1,16 +1,31 @@
+#pragma once
+
 /*********************************************************************/
 /*                       INCLUDES AND DEFINES                        */
 /*********************************************************************/
 
-#pragma once
 #include <vector>
 #include <iostream>
 
 #include "Table.hpp"
 
-#define SUB_KEYS 11
-#define NUM_ROUNDS 10
-#define KEY_SIZE 16
+#define AES_BITS 128
+
+#if AES_BITS == 128  
+	#define NUM_ROUNDS 10
+	#define SUB_KEYS (NUM_ROUNDS + 1)
+	#define KEY_BLOCK 16
+#endif  
+#if AES_BITS == 192  
+	#define NUM_ROUNDS 12
+	#define SUB_KEYS (NUM_ROUNDS + 1)
+	#define KEY_BLOCK 16 
+#endif  
+#if AES_BITS == 256 
+	#define NUM_ROUNDS 14
+	#define SUB_KEYS (NUM_ROUNDS + 1)
+	#define KEY_BLOCK 16
+#endif   
 
 typedef std::vector<unsigned char> ByteArray;
 using std::vector;
@@ -40,7 +55,7 @@ public:
 
 	// Key schedule functions
 	void key_schedule();
-	ByteArray sub_key(ByteArray &prev_subkey, const int  &r);
+	ByteArray sub_key128(ByteArray &prev_subkey, const int &r);
 
 	// Sub-Layers of AES round
 	// Byte-Sub

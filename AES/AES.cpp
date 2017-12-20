@@ -54,7 +54,7 @@ ByteArray AES::encrypt(ByteArray &message)
 	round = 1;
 
 	// Round 1 to NUM_ROUNDS - 1 (R1 to R9)
-	for (round; round < NUM_ROUNDS; ++round)
+	for (round; round != NUM_ROUNDS; ++round)
 	{
 		byte_sub(message);
 		shift_rows(message);
@@ -111,22 +111,24 @@ void AES::key_schedule()
 {
 	register int r;
 
-	for (r = 0; r < SUB_KEYS; r++)
+	for (r = 0; r != SUB_KEYS; r++)
 	{
 		if (r == 0)
 			m_subkeys[r] = m_key;
 		else
-			m_subkeys[r] = sub_key(m_subkeys[r - 1],  r - 1);
-		
-		/*cout << "Subkey[" << std::dec << r << "] : " << endl;
-		print_byte_array(m_subkeys[r]);*/
+		{
+			if (AES_BITS == 128)
+				m_subkeys[r] = sub_key128(m_subkeys[r - 1], r - 1);
+			else
+				cout << "TODO! 192-bit and 256-bit not implemented yet." << endl;
+		}
 	}
 }
 
 // Computing subkeys for round 1 up to 10
-ByteArray AES::sub_key(ByteArray &prev_subkey, const int  &r)
+ByteArray AES::sub_key128(ByteArray &prev_subkey, const int &r)
 {
-	ByteArray result(KEY_SIZE);
+	ByteArray result(KEY_BLOCK);
 	register int i;
 
 	result[0] = (prev_subkey[0] ^ (sbox[prev_subkey[13]] ^ RC[r]));
@@ -134,12 +136,12 @@ ByteArray AES::sub_key(ByteArray &prev_subkey, const int  &r)
 	result[2] = (prev_subkey[2] ^ sbox[prev_subkey[15]]);
 	result[3] = (prev_subkey[3] ^ sbox[prev_subkey[12]]);
 
-	for (i = 4; i != result.size(); i += 4)
+	for (i = 4; i != KEY_BLOCK; i += 4)
 	{
-		result[i + 0] = (result[i + 0 - 4] ^ prev_subkey[i + 0]);
-		result[i + 1] = (result[i + 1 - 4] ^ prev_subkey[i + 1]);
-		result[i + 2] = (result[i + 2 - 4] ^ prev_subkey[i + 2]);
-		result[i + 3] = (result[i + 3 - 4] ^ prev_subkey[i + 3]);
+		result[i + 0] = (result[i - 4] ^ prev_subkey[i + 0]);
+		result[i + 1] = (result[i - 3] ^ prev_subkey[i + 1]);
+		result[i + 2] = (result[i - 2] ^ prev_subkey[i + 2]);
+		result[i + 3] = (result[i - 1] ^ prev_subkey[i + 3]);
 	}
 
 	return result;
@@ -154,7 +156,7 @@ void AES::byte_sub(ByteArray &message)
 {
 	register int i = 0;
 
-	for (i; i < KEY_SIZE; ++i)
+	for (i; i != KEY_BLOCK; ++i)
 		message[i] = sbox[message[i]];
 }
 
@@ -163,7 +165,7 @@ void AES::byte_sub_inv(ByteArray &message)
 {
 	register int i = 0;
 
-	for (i; i < KEY_SIZE; ++i)
+	for (i; i != KEY_BLOCK; ++i)
 		message[i] = sboxinv[message[i]];
 }
 
@@ -219,13 +221,13 @@ void AES::shift_rows_inv(ByteArray &message)
 	message[15] = k;
 }
 
-// Mix column
+// Mix column - can be parallel
 void AES::mix_columns(ByteArray &message)
 {
 	register unsigned char b0, b1, b2, b3;
 	register int i;
 
-	for (i = 0; i < KEY_SIZE; i += 4)
+	for (i = 0; i != KEY_BLOCK; i += 4)
 	{
 		b0 = message[i + 0];
 		b1 = message[i + 1];
@@ -233,10 +235,10 @@ void AES::mix_columns(ByteArray &message)
 		b3 = message[i + 3];
 
 		// Mix-Col Matrix * b vector
-		message[i + 0] = mul_shift(b0, 0x02) ^ mul_shift(b1, 0x03) ^ b2 ^ b3;
-		message[i + 1] = b0 ^ mul_shift(b1, 0x02) ^ mul_shift(b2, 0x03) ^ b3;
-		message[i + 2] = b0 ^ b1 ^ mul_shift(b2, 0x02) ^ mul_shift(b3, 0x03);
-		message[i + 3] = mul_shift(b0, 0x03) ^ b1 ^ b2 ^ mul_shift(b3, 0x02);
+		message[i + 0] = mul(b0, 0x02) ^ mul(b1, 0x03) ^ b2 ^ b3;
+		message[i + 1] = b0 ^ mul(b1, 0x02) ^ mul(b2, 0x03) ^ b3;
+		message[i + 2] = b0 ^ b1 ^ mul(b2, 0x02) ^ mul(b3, 0x03);
+		message[i + 3] = mul(b0, 0x03) ^ b1 ^ b2 ^ mul(b3, 0x02);
 	}
 }
 
@@ -246,23 +248,18 @@ void AES::mix_columns_inv(ByteArray &message)
 	register unsigned char c0, c1, c2, c3;
 	register int i;
 
-	for (i = 0; i < KEY_SIZE; i += 4)
+	for (i = 0; i != KEY_BLOCK; i += 4)
 	{
 		c0 = message[i + 0];
 		c1 = message[i + 1];
 		c2 = message[i + 2];
 		c3 = message[i + 3];
 
-		// Mix-Col Matrix * b vector
+		// Mix-Col Inverse Matrix * c vector
 		message[i + 0] = mul(c0, 0x0e) ^ mul(c1, 0x0b) ^ mul(c2, 0x0d) ^ mul(c3, 0x09);
 		message[i + 1] = mul(c0, 0x09) ^ mul(c1, 0x0e) ^ mul(c2, 0x0b) ^ mul(c3, 0x0d);
 		message[i + 2] = mul(c0, 0x0d) ^ mul(c1, 0x09) ^ mul(c2, 0x0e) ^ mul(c3, 0x0b);
 		message[i + 3] = mul(c0, 0x0b) ^ mul(c1, 0x0d) ^ mul(c2, 0x09) ^ mul(c3, 0x0e);
-
-		/*print_byte(mul(c0, 0x0e));
-		print_byte(mul(c1, 0x0b));
-		print_byte(mul(c2, 0x0d));
-		print_byte(mul(c3, 0x09));*/
 	}
 }
 
@@ -270,6 +267,6 @@ void AES::key_addition(ByteArray &message, const int &r)
 {
 	register int i = 0;
 
-	for (i; i < message.size(); ++i)
+	for (i; i != message.size(); ++i)
 		message[i] ^= m_subkeys[r][i];
 }
