@@ -19,7 +19,7 @@ using std::vector;
 /*********************************************************************/
 
 // Cout whole ByteArray
-void print_byte_array(ByteArray &arr);
+void print_byte_array(unsigned char *arr);
 
 // Cout hex byte
 void print_byte(const unsigned char &byte);

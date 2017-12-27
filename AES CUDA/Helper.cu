@@ -20,9 +20,9 @@ using std::vector;
 /*********************************************************************/
 
 // Cout whole ByteArray
-void print_byte_array(ByteArray &arr)
+void print_byte_array(unsigned char *arr)
 {
-	for (size_t i = 0; i != arr.size(); ++i)
+	for (size_t i = 0; i != sizeof(arr) / sizeof(arr[0]); ++i)
 	{
 		cout << std::hex << (int)arr[i] << "\t";
 	}

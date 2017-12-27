@@ -17,6 +17,7 @@
   </ItemGroup>
   <ItemGroup>
     <CudaCompile Include="AES.cu" />
+    <CudaCompile Include="aes_kernel.cu" />
     <CudaCompile Include="Helper.cu" />
     <CudaCompile Include="main.cu" />
   </ItemGroup>
