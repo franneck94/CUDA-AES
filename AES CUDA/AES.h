@@ -60,7 +60,7 @@ public:
 	// Byte-Sub
 	void byte_sub(unsigned char *message);
 	void byte_sub_inv(unsigned char *message);
-	// SHift-Rows
+	// Shift-Rows
 	void shift_rows(unsigned char *message);
 	void shift_rows_inv(unsigned char *message);
 	// Mix-Col

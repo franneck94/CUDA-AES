@@ -21,30 +21,11 @@ using std::vector;
 // Cout whole ByteArray
 void print_byte_array(unsigned char *arr);
 
+// Checks if two ByteArrays has same values
+bool check_byte_arrays(unsigned char *arr1, unsigned char *arr2);;
+
 // Cout hex byte
 void print_byte(const unsigned char &byte);
 
 // Multiplication with log and exp in GF(2^8)
-inline unsigned char mul(const unsigned char &x, const unsigned char &y)
-{
-	int s;
-	int q;
-	int z = 0;
-
-	s = ltable[x] + ltable[y];
-	s %= 255;
-	s = atable[s];
-	q = s;
-
-	if (x == 0)
-		s = z;
-	else 
-		s = q;
-
-	if (y == 0) 
-		s = z;
-	else 
-		q = z;
-
-	return s;
-}
+__device__ unsigned char mul(const unsigned char &x, const unsigned char &y, unsigned char *ltable, unsigned char *atable);

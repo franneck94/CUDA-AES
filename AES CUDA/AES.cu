@@ -162,10 +162,16 @@ void AES::byte_sub(unsigned char *message)
 	cudaMalloc((void **)&d_message, size_message);
 	cudaMemcpy(d_message, message, size_message, cudaMemcpyHostToDevice);
 
+	int size_sbox = sizeof(sbox);
+	unsigned char *d_sbox;
+	cudaMalloc((void **)&d_sbox, size_sbox);
+	cudaMemcpy(d_sbox, sbox, size_sbox, cudaMemcpyHostToDevice);
+
 	//<<<1, 1>>> byte_sub_kernel(d_message);
 
 	cudaMemcpy(message, d_message, size_message, cudaMemcpyDeviceToHost);
 	cudaFree(d_message);
+	cudaFree(d_sbox);
 }
 
 // Inverse byte substitution (S-Boxes) can be parallel
@@ -176,10 +182,16 @@ void AES::byte_sub_inv(unsigned char *message)
 	cudaMalloc((void **)&d_message, size_message);
 	cudaMemcpy(d_message, message, size_message, cudaMemcpyHostToDevice);
 
+	int size_sboxinv = sizeof(sboxinv);
+	unsigned char *d_sboxinv;
+	cudaMalloc((void **)&d_sboxinv, size_sboxinv);
+	cudaMemcpy(d_sboxinv, sboxinv, size_sboxinv, cudaMemcpyHostToDevice);
+
 	//<<<1, 1 >>> byte_sub_inv_kernel(d_message);
 
 	cudaMemcpy(message, d_message, size_message, cudaMemcpyDeviceToHost);
 	cudaFree(d_message);
+	cudaFree(d_sboxinv);
 }
 
 // Shift rows - can be parallel
@@ -220,7 +232,17 @@ void AES::mix_columns(unsigned char *message)
 	cudaMalloc((void **)&d_message, size_message);
 	cudaMemcpy(d_message, message, size_message, cudaMemcpyHostToDevice);
 
-	//<<<1, 1 >>> mix_columns_kernel(d_message);
+	int size_ltable = sizeof(ltable);
+	unsigned char *d_ltable;
+	cudaMalloc((void **)&d_ltable, size_ltable);
+	cudaMemcpy(d_ltable, ltable, size_ltable, cudaMemcpyHostToDevice);
+
+	int size_atable = sizeof(atable);
+	unsigned char *d_atable;
+	cudaMalloc((void **)&d_atable, size_atable);
+	cudaMemcpy(d_atable, atable, size_atable, cudaMemcpyHostToDevice);
+
+	//<<<1, 1 >>> mix_columns_kernel(d_message, ltable, atable);
 
 	cudaMemcpy(message, d_message, size_message, cudaMemcpyDeviceToHost);
 	cudaFree(d_message);
@@ -233,6 +255,16 @@ void AES::mix_columns_inv(unsigned char *message)
 	unsigned char *d_message;
 	cudaMalloc((void **)&d_message, size_message);
 	cudaMemcpy(d_message, message, size_message, cudaMemcpyHostToDevice);
+
+	int size_ltable = sizeof(ltable);
+	unsigned char *d_ltable;
+	cudaMalloc((void **)&d_ltable, size_ltable);
+	cudaMemcpy(d_ltable, ltable, size_ltable, cudaMemcpyHostToDevice);
+
+	int size_atable = sizeof(atable);
+	unsigned char *d_atable;
+	cudaMalloc((void **)&d_atable, size_atable);
+	cudaMemcpy(d_atable, atable, size_atable, cudaMemcpyHostToDevice);
 
 	//<<<1, 1 >>> mix_columns_inv_kernel(d_message);
 
