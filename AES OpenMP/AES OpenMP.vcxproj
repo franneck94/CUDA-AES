@@ -118,10 +118,12 @@
     <ClCompile Include="AES.cpp" />
     <ClCompile Include="Helper.cpp" />
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="Mode.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="AES.hpp" />
     <ClInclude Include="Helper.hpp" />
+    <ClInclude Include="Mode.hpp" />
     <ClInclude Include="Table.hpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
