@@ -5,40 +5,57 @@
 #include <iostream>
 #include <stdlib.h>
 #include <vector>
+#include <chrono>
+#include <string>
 
 #include "Helper.hpp"
 #include "AES.hpp"
+#include "Mode.hpp"
 
 using std::cout;
 using std::endl;
 using std::vector;
+using std::string;
 
 int main()
 {
-	AES aes;
+	// Define Variables
+	unsigned int iv_length = 12;
+	float milliseconds_encryption = 0.0f;
+	float milliseconds_decryption = 0.0f;
 
-	ByteArray encrypted;
-	ByteArray decrypted;
-	// 7649abac8119b246cee98e9b12e9197d
-	ByteArray message = { 0x76, 0x49, 0xab, 0xac, 0x81, 0x19, 0xb2, 0x46,
-						0xce, 0xe9, 0x8e, 0x9b, 0x12, 0xe9, 0x19, 0x7d };
-	// decafbadc0deba5edeadc0debadc0ded
-	ByteArray key = { 0xde, 0xca, 0xfb, 0xad,
-					0xc0, 0xde, 0xba, 0x5e,
-					0xde, 0xad, 0xc0, 0xde,
-					0xba, 0xdc, 0x0d, 0xed };
+	string file_path_key = "C:/Users/Jan/Dropbox/Master AI/Parallel Computing/Project/key.txt";
+	string file_path_messages = "C:/Users/Jan/Dropbox/Master AI/Parallel Computing/Project/decrypt.txt";
+	string file_path_encrypted_messages = "C:/Users/Jan/Dropbox/Master AI/Parallel Computing/Project/encrypt.txt";
 
-	cout << endl << "Message: " << endl;
-	print_byte_array(message);
-	cout << endl << "Key: " << endl;
-	print_byte_array(key);
+	vector<ByteArray> decrypted_solution;
+	vector<ByteArray> encrypted_solution;
 
-	cout << endl << "Encrypted: " << endl;
-	encrypted = aes.encrypt(message);
-	print_byte_array(encrypted);
-	cout << endl << "Decrypted: " << endl;
-	decrypted = aes.decrypt(encrypted);
-	print_byte_array(decrypted);
+	cout << endl << "Starting!";
+
+	// Load data from files
+	ByteArray key = read_key(file_path_key);
+	ByteArray IV = random_byte_array(iv_length);
+	vector<ByteArray> messages = read_datafile(file_path_messages);
+	vector<ByteArray> encrpyted_messages = read_datafile(file_path_encrypted_messages);
+
+	// Starting Timers and Counter Mode for Encryption
+	auto start_time = std::chrono::high_resolution_clock::now();
+	encrypted_solution = counter_mode(messages, key, IV);
+	auto end_time = std::chrono::high_resolution_clock::now();
+	auto time = end_time - start_time;
+	milliseconds_encryption = std::chrono::duration_cast<std::chrono::microseconds>(time).count();
+	cout << endl << "Serial Encrypted Duration: " << milliseconds_encryption << " (us)." << endl;
+
+	// Starting Timers and Counter Mode for Decryption
+	start_time = std::chrono::high_resolution_clock::now();
+	decrypted_solution = counter_mode_inverse(encrypted_solution, key, IV);
+	end_time = std::chrono::high_resolution_clock::now();
+	time = end_time - start_time;
+	milliseconds_encryption = std::chrono::duration_cast<std::chrono::microseconds>(time).count();
+	cout << endl << "Serial Encrypted Duration: " << milliseconds_encryption << " (us)." << endl;
+
+	cout << endl << "Legit solution: " << check_vector_of_byte_arrays(decrypted_solution, messages) << endl;
 
 	getchar();
 }

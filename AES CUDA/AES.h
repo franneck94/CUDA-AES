@@ -37,20 +37,18 @@ class AES
 {
 
 public:
-	AES();
-	~AES();
+	// Constructor
+	AES(unsigned char *message, unsigned char *key);
 
-//private:
+	// Main functions of AES
+	unsigned char* encrypt();
+	unsigned char* decrypt();
+
+private:
 	// Member vairables
 	unsigned char *m_key;
 	vector<unsigned char*> m_subkeys;
 	unsigned char *m_message;
-	unsigned char *m_encrypted_message;
-	unsigned char *m_decrypted_message;
-
-	// Main functions of AES
-	unsigned char* encrypt(unsigned char *message);
-	unsigned char* decrypt(unsigned char *message);
 
 	// Key schedule functions
 	void key_schedule();

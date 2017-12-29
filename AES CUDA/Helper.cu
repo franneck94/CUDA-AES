@@ -2,12 +2,12 @@
 /*                       INCLUDES AND DEFINES                        */
 /*********************************************************************/
 
-#include <vector>
-#include <iostream>
-
 #include "cuda_runtime.h"
 #include "device_launch_parameters.h"
 #include <cuda.h>
+
+#include <vector>
+#include <iostream>
 
 #include "Helper.h"
 
@@ -19,7 +19,7 @@ using std::vector;
 /*                          HELPER FUNCTIONS                         */
 /*********************************************************************/
 
-// Cout whole ByteArray
+// Cout whole unsigned char Array
 void print_byte_array(unsigned char *arr)
 {
 	for (size_t i = 0; i != sizeof(arr) / sizeof(arr[0]); ++i)
@@ -29,8 +29,30 @@ void print_byte_array(unsigned char *arr)
 	cout << endl << endl;
 }
 
+// Checks if two Vector of unsigned chars has same values
+bool check_vector_of_byte_arrays(const vector<unsigned char*> &arr1, const vector<unsigned char*> &arr2)
+{
+	bool check = true;
+
+	if (arr1.size() != arr2.size())
+		return false;
+
+	for (size_t i = 0; i != arr1.size(); ++i)
+	{
+		if (arr1[i] != arr2[i])
+			check = check_byte_arrays(arr1[i], arr2[i]);
+		if (!check)
+		{
+			cout << endl << "Error at index i = " << i << endl;
+			return false;
+		}
+	}
+
+	return true;
+}
+
 // Checks if two ByteArrays has same values
-bool check_byte_arrays(unsigned char *arr1, unsigned char *arr2)
+bool check_byte_arrays(const unsigned char *arr1, const unsigned char *arr2)
 {
 	if (sizeof(arr1) != sizeof(arr2))
 		return false;
@@ -51,7 +73,7 @@ void print_byte(const unsigned char &byte)
 }
 
 // Multiplication with log and exp in GF(2^8)
-__device__ unsigned char mul(const unsigned char &x, const unsigned char &y, unsigned char *ltable, unsigned char *atable)
+__device__ unsigned char mul(unsigned char &x, unsigned char &y, unsigned char *ltable, unsigned char *atable)
 {
 	int s;
 	int q;
@@ -73,4 +95,19 @@ __device__ unsigned char mul(const unsigned char &x, const unsigned char &y, uns
 		q = z;
 
 	return s;
+}
+
+// XOR for ByteArray
+unsigned char* XOR(const unsigned char *arr1, const unsigned char *arr2)
+{
+	unsigned char* res;
+	const unsigned int arr_size = sizeof(arr1) / sizeof(unsigned char);
+	res = new unsigned char[arr_size];
+
+	for (size_t i = 0; i != arr_size; ++i)
+	{
+		res[i] = arr1[i] ^ arr2[i];
+	}
+
+	return res;
 }

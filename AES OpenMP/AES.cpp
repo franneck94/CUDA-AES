@@ -5,6 +5,7 @@
 #include <iostream>
 #include <stdlib.h>
 #include <vector>
+#include <omp.h>
 
 #include "AES.hpp"
 #include "Helper.hpp"
@@ -18,36 +19,24 @@ using std::vector;
 /*********************************************************************/
 
 // Constructor of AES en/decryption
-AES::AES() : m_subkeys(SUB_KEYS)
+AES::AES(const ByteArray &message, const ByteArray &key) : m_subkeys(SUB_KEYS)
 {
-	cout << "AES datastream created!" << endl;
-
-	m_message = { 0x76, 0x49, 0xab, 0xac, 0x81, 0x19, 0xb2, 0x46,
-				0xce, 0xe9, 0x8e, 0x9b, 0x12, 0xe9, 0x19, 0x7d};
-
-	m_key = { 0xde, 0xca, 0xfb, 0xad,
-			0xc0, 0xde, 0xba, 0x5e,
-			0xde, 0xad, 0xc0, 0xde,
-			0xba, 0xdc, 0x0d, 0xed};
+	m_message = message;
+	m_key = key;
+	omp_set_num_threads(4);
 
 	key_schedule();
 }
-
-// Destructor of AES en/decryption
-AES::~AES()
-{
-	cout << "AES datastream deleted!" << endl;
-}
-
 
 /*********************************************************************/
 /*                       EN- DECRYPTION FUNCTIONS                    */
 /*********************************************************************/
 
 // Starting the encryption phase
-ByteArray AES::encrypt(ByteArray &message)
+ByteArray AES::encrypt()
 {
 	register int i = 0, round = 0;
+	ByteArray message = m_message;
 
 	// Key-Add before round 1 (R0)
 	key_addition(message, round);
@@ -68,15 +57,14 @@ ByteArray AES::encrypt(ByteArray &message)
 	shift_rows(message);
 	key_addition(message, round);
 
-	// Save encrypted message
-	m_encrypted_message = message;
 	return message;
 }
 
 // Starting the decryption phase
-ByteArray AES::decrypt(ByteArray &message)
+ByteArray AES::decrypt()
 {
 	register int i = 0, round = NUM_ROUNDS;
+	ByteArray message = m_message;
 
 	// Key-Add before round (Inverse NUM_ROUNDS)
 	key_addition(message, round);
@@ -97,8 +85,6 @@ ByteArray AES::decrypt(ByteArray &message)
 	round = 0;
 	key_addition(message, round);
 
-	// Save decrypted message
-	m_decrypted_message = message;
 	return message;
 }
 
@@ -156,6 +142,7 @@ void AES::byte_sub(ByteArray &message)
 {
 	register int i = 0;
 
+	#pragma omp parallel for
 	for (i; i != KEY_BLOCK; ++i)
 		message[i] = sbox[message[i]];
 }
@@ -165,6 +152,7 @@ void AES::byte_sub_inv(ByteArray &message)
 {
 	register int i = 0;
 
+	#pragma omp parallel for
 	for (i; i != KEY_BLOCK; ++i)
 		message[i] = sboxinv[message[i]];
 }
@@ -173,52 +161,74 @@ void AES::byte_sub_inv(ByteArray &message)
 // B0, B4, B8, B12 stays the same
 void AES::shift_rows(ByteArray &message)
 {
-	register unsigned char i, j, k, l; 
+	register unsigned char i = 0, j = 0, k = 0; 
 
-	i = message[1];
-	message[1] = message[5];
-	message[5] = message[9];
-	message[9] = message[13];
-	message[13] = i;
-
-	j = message[10];
-	message[10] = message[2];
-	message[2] = j;
-	l = message[14];
-	message[14] = message[6];
-	message[6] = l;
-
-	k = message[3];
-	message[3] = message[15];
-	message[15] = message[11];
-	message[11] = message[7];
-	message[7] = k;
+	#pragma omp parallel for
+	for (i = 0; i != 3; ++i)
+	{
+		if (i == 4)
+		{
+			j = message[1];
+			message[1] = message[5];
+			message[5] = message[9];
+			message[9] = message[13];
+			message[13] = j;
+		}
+		else if (i == 8)
+		{
+			j = message[10];
+			k = message[14];
+			message[10] = message[2];
+			message[2] = j;
+			message[14] = message[6];
+			message[6] = k;
+		}
+		else
+		{
+			k = message[3];
+			message[3] = message[15];
+			message[15] = message[11];
+			message[11] = message[7];
+			message[7] = k;
+		}
+	}
 }
 
 // Inverse shift rows - can be parallel
 // C0, C4, C8, C12 stays the same
 void AES::shift_rows_inv(ByteArray &message)
 {
-	register unsigned char i, j, k, l; 
+	register unsigned char i = 0, j = 0, k = 0;
 
-	i = message[1];
-	message[1] = message[13];
-	message[13] = message[9];
-	message[9] = message[5];
-	message[5] = i;
-
-	j = message[2];
-	message[2] = message[10];
-	message[10] = j;
-	l = message[6];
-	message[6] = message[14];
-	message[14] = l;
-
-	k = message[3];
-	message[3] = message[7];
-	message[7] = message[11];
-	message[11] = message[15];
-	message[15] = k;
+	#pragma omp parallel for
+	for (i = 0; i != 3; ++i)
+	{
+		if (i == 4)
+		{
+			j = message[1];
+			message[1] = message[13];
+			message[13] = message[9];
+			message[9] = message[5];
+			message[5] = j;
+		}
+		else if (i == 8)
+		{
+			j = message[2];
+			k = message[6];
+			message[2] = message[10];
+			message[10] = j;
+			message[6] = message[14];
+			message[14] = k;
+		}
+		else
+		{
+			j = message[3];
+			message[3] = message[7];
+			message[7] = message[11];
+			message[11] = message[15];
+			message[15] = j;
+		}
+	}
 }
 
 // Mix column - can be parallel
@@ -227,6 +237,7 @@ void AES::mix_columns(ByteArray &message)
 	register unsigned char b0, b1, b2, b3;
 	register int i;
 
+	#pragma omp parallel for
 	for (i = 0; i != KEY_BLOCK; i += 4)
 	{
 		b0 = message[i + 0];
@@ -248,6 +259,7 @@ void AES::mix_columns_inv(ByteArray &message)
 	register unsigned char c0, c1, c2, c3;
 	register int i;
 
+	#pragma omp parallel for
 	for (i = 0; i != KEY_BLOCK; i += 4)
 	{
 		c0 = message[i + 0];
@@ -267,6 +279,7 @@ void AES::key_addition(ByteArray &message, const int &r)
 {
 	register int i = 0;
 
+	#pragma omp parallel for
 	for (i; i != message.size(); ++i)
 		message[i] ^= m_subkeys[r][i];
 }
