@@ -97,17 +97,15 @@ const ByteArray random_byte_array(const unsigned int &length)
 
 // Increment Counter TODO!
 ByteArray increment_counter(const ByteArray &start_counter,
-	const unsigned int &round)
+							const unsigned int &round)
 {
-	string next_counter_str(start_counter.begin(), start_counter.end());
-	long test = (long)next_counter_str.c_str();
-	test += round;
-	next_counter_str = test;
-	ByteArray next_counter(next_counter_str.begin(), next_counter_str.end());
+	/*string next_counter_str(start_counter.begin(), start_counter.end());
+	unsigned long main_hex_val = std::stol(next_counter_str);
+	main_hex_val += round;
+	next_counter_str = main_hex_val;*/
 
-	return next_counter;
-	/*ByteArray test{ 0x00, 0x00, 0x00, 0x00 };
-	return test;*/
+	ByteArray test{ 0x00, 0x00, 0x00, 0x00 };
+	return test;
 }
 
 // Generate Counters for all Rounds
@@ -135,8 +133,8 @@ void generate_counters(vector<ByteArray> &ctrs, const ByteArray &IV)
 
 // Execute the Counter Mode for all Message Blocks
 const vector<ByteArray> counter_mode(const vector<ByteArray> &messages,
-	const ByteArray &key,
-	const ByteArray &IV)
+									const ByteArray &key,
+									const ByteArray &IV)
 {
 	AES *aes;
 	vector<ByteArray> encrypted_messages(messages.size(), vector<unsigned char>(KEY_BLOCK, 0x00));
@@ -157,8 +155,8 @@ const vector<ByteArray> counter_mode(const vector<ByteArray> &messages,
 
 // Execute the Inverse Counter Mode for all Decrypted Message Blocks
 const vector<ByteArray> counter_mode_inverse(const vector<ByteArray> &encrypted_messages,
-	const ByteArray &key,
-	const ByteArray &IV)
+											const ByteArray &key,
+											const ByteArray &IV)
 {
 	AES *aes;
 	vector<ByteArray> decrypted_messages(encrypted_messages.size(), vector<unsigned char>(KEY_BLOCK, 0x00));
@@ -170,7 +168,7 @@ const vector<ByteArray> counter_mode_inverse(const vector<ByteArray> &encrypted_
 	for (size_t i = 0; i != encrypted_messages.size(); ++i)
 	{
 		aes = new AES(ctrs[i], key);
-		decrypted_messages[i] = XOR(aes->decrypt(), encrypted_messages[i]);
+		decrypted_messages[i] = XOR(aes->encrypt(), encrypted_messages[i]);
 		delete aes;
 	}
 
