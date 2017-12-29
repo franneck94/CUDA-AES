@@ -99,15 +99,15 @@ const ByteArray random_byte_array(const unsigned int &length)
 ByteArray increment_counter(const ByteArray &start_counter,
 	const unsigned int &round)
 {
-	//string next_counter_str(start_counter.begin(), start_counter.end());
-	//long test = (long)next_counter_str.c_str();
-	//test += round;
-	//next_counter_str = test;
-	//ByteArray next_counter(next_counter_str.begin(), next_counter_str.end());
+	string next_counter_str(start_counter.begin(), start_counter.end());
+	long test = (long)next_counter_str.c_str();
+	test += round;
+	next_counter_str = test;
+	ByteArray next_counter(next_counter_str.begin(), next_counter_str.end());
 
-	//return next_counter;
-	ByteArray test{ 0x00, 0x00, 0x00, 0x00 };
-	return test;
+	return next_counter;
+	/*ByteArray test{ 0x00, 0x00, 0x00, 0x00 };
+	return test;*/
 }
 
 // Generate Counters for all Rounds
