@@ -4,6 +4,14 @@
 /*                       INCLUDES AND DEFINES                        */
 /*********************************************************************/
 
+#include "cuda_runtime.h"
+#include "device_launch_parameters.h"
+#include <cuda.h>
+
+/*********************************************************************/
+/*                       INCLUDES AND DEFINES                        */
+/*********************************************************************/
+
 const unsigned char RC[10] =
 {
 	0x01, 0x02, 0x04, 0x08, 0x10,
@@ -11,7 +19,7 @@ const unsigned char RC[10] =
 };
 
 /* Log table using 0xe5 (229) as the generator */
-const unsigned char ltable[256] = 
+const unsigned char ltable[256] =
 {
 	0x00, 0xff, 0xc8, 0x08, 0x91, 0x10, 0xd0, 0x36,
 	0x5a, 0x3e, 0xd8, 0x43, 0x99, 0x77, 0xfe, 0x18,
@@ -47,7 +55,7 @@ const unsigned char ltable[256] =
 	0x68, 0x1b, 0x64, 0x04, 0x06, 0xbf, 0x83, 0x38 };
 
 /* Anti-log table: */
-const unsigned char atable[256] = 
+const unsigned char atable[256] =
 {
 	0x01, 0xe5, 0x4c, 0xb5, 0xfb, 0x9f, 0xfc, 0x12,
 	0x03, 0x34, 0xd4, 0xc4, 0x16, 0xba, 0x1f, 0x36,
