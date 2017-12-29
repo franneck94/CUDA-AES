@@ -20,7 +20,7 @@ using std::string;
 int main()
 {
 	// Define Variables
-	unsigned int salt = 42;
+	unsigned int iv_length = 12;
 	float milliseconds_encryption = 0.0f;
 	float milliseconds_decryption = 0.0f;
 	string file_path_key = "C:/Users/Jan/Dropbox/Master AI/Parallel Computing/Project/key.txt";
@@ -29,7 +29,7 @@ int main()
 
 	// Load data from files
 	ByteArray key = read_key(file_path_key);
-	ByteArray IV = generate_iv(salt);
+	ByteArray IV = random_byte_array(iv_length);
 	vector<ByteArray> messages = read_datafile(file_path_messages);
 	vector<ByteArray> encrpyted_messages = read_datafile(file_path_encrypted_messages);
 

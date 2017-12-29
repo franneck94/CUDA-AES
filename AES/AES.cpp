@@ -18,36 +18,22 @@ using std::vector;
 /*********************************************************************/
 
 // Constructor of AES en/decryption
-AES::AES() : m_subkeys(SUB_KEYS)
+AES::AES(const ByteArray &message, const ByteArray &key) : m_subkeys(SUB_KEYS)
 {
-	cout << "AES datastream created!" << endl;
-
-	m_message = { 0x76, 0x49, 0xab, 0xac, 0x81, 0x19, 0xb2, 0x46,
-				0xce, 0xe9, 0x8e, 0x9b, 0x12, 0xe9, 0x19, 0x7d};
-
-	m_key = { 0xde, 0xca, 0xfb, 0xad,
-			0xc0, 0xde, 0xba, 0x5e,
-			0xde, 0xad, 0xc0, 0xde,
-			0xba, 0xdc, 0x0d, 0xed};
-
+	m_message = message;
+	m_key = key;
 	key_schedule();
 }
-
-// Destructor of AES en/decryption
-AES::~AES()
-{
-	cout << "AES datastream deleted!" << endl;
-}
-
 
 /*********************************************************************/
 /*                       EN- DECRYPTION FUNCTIONS                    */
 /*********************************************************************/
 
 // Starting the encryption phase
-ByteArray AES::encrypt(ByteArray &message)
+ByteArray AES::encrypt()
 {
 	register int i = 0, round = 0;
+	ByteArray message = m_message;
 
 	// Key-Add before round 1 (R0)
 	key_addition(message, round);
@@ -68,15 +54,14 @@ ByteArray AES::encrypt(ByteArray &message)
 	shift_rows(message);
 	key_addition(message, round);
 
-	// Save encrypted message
-	m_encrypted_message = message;
 	return message;
 }
 
 // Starting the decryption phase
-ByteArray AES::decrypt(ByteArray &message)
+ByteArray AES::decrypt()
 {
 	register int i = 0, round = NUM_ROUNDS;
+	ByteArray message = m_message;
 
 	// Key-Add before round (Inverse NUM_ROUNDS)
 	key_addition(message, round);
@@ -97,8 +82,6 @@ ByteArray AES::decrypt(ByteArray &message)
 	round = 0;
 	key_addition(message, round);
 
-	// Save decrypted message
-	m_decrypted_message = message;
 	return message;
 }
 

@@ -26,8 +26,15 @@ const vector<ByteArray> read_datafile(const string &file_path);
 // Read-In Key  Datafile in Hex-Format
 const ByteArray read_key(const string &file_path);
 
-// Generate IV-Vector for Counter Mode
-const ByteArray generate_iv(const unsigned int &salt);
+// Generate Random ByteArray
+const ByteArray random_byte_array(const unsigned int &length);
+
+// Increment Counter TODO!
+ByteArray increment_counter(const ByteArray &start_counter,
+							const unsigned int &round);
+
+// Generate Counters for all Rounds
+void generate_counters(vector<ByteArray> &ctrs, const ByteArray &IV);
 
 // Execute the Counter Mode for all Message Blocks
 const vector<ByteArray> counter_mode(const vector<ByteArray> &messages,

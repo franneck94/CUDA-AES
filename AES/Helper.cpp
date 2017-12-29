@@ -26,7 +26,7 @@ void print_byte_array(ByteArray &arr)
 }
 
 // Checks if two ByteArrays has same values
-bool check_byte_arrays(ByteArray &arr1, ByteArray &arr2)
+bool check_byte_arrays(const ByteArray &arr1, const ByteArray &arr2)
 {
 	if (arr1.size() != arr2.size())
 		return false;
@@ -44,4 +44,17 @@ bool check_byte_arrays(ByteArray &arr1, ByteArray &arr2)
 void print_byte(const unsigned char &byte)
 {
 	cout << endl << "Byte: " << std::hex << (int)byte;
+}
+
+// XOR for ByteArray
+ByteArray XOR(const ByteArray &arr1, const ByteArray &arr2)
+{
+	ByteArray res(arr1.size(), 0x00);
+
+	for (size_t i = 0; i != arr1.size(); ++i)
+	{
+		res[i] = arr1[i] ^ arr2[i];
+	}
+
+	return res;
 }

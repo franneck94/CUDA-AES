@@ -38,20 +38,17 @@ class AES
 {
 
 public:
-	AES();
-	~AES();
+	// Constructor
+	AES(const ByteArray &message, const ByteArray &key);
+	// Main functions of AES
+	ByteArray encrypt();
+	ByteArray decrypt();
 
-//private:
+private:
 	// Member vairables
 	ByteArray m_key;
 	vector<ByteArray> m_subkeys;
 	ByteArray m_message;
-	ByteArray m_encrypted_message;
-	ByteArray m_decrypted_message;
-
-	// Main functions of AES
-	ByteArray encrypt(ByteArray &message);
-	ByteArray decrypt(ByteArray &message);
 
 	// Key schedule functions
 	void key_schedule();
