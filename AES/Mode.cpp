@@ -82,7 +82,7 @@ const ByteArray random_byte_array(const unsigned int &length)
 
 	std::random_device rd;
 	std::mt19937 generator(rd());
-	std::uniform_int_distribution<int> distribution(0, 16);
+	std::uniform_int_distribution<int> distribution(0, 15);
 
 	for (size_t i = 0; i != byte_array.size(); ++i)
 	{
@@ -96,13 +96,11 @@ const ByteArray random_byte_array(const unsigned int &length)
 ByteArray increment_counter(const ByteArray &start_counter,
 							const unsigned int &round)
 {
-	//string next_counter_str(start_counter.begin(), start_counter.end());
-	//long test = (long)next_counter_str.c_str();
-	//test += round;
-	//next_counter_str = test;
-	//ByteArray next_counter(next_counter_str.begin(), next_counter_str.end());
+	/*string next_counter_str(start_counter.begin(), start_counter.end());
+	unsigned long main_hex_val = std::stol(next_counter_str);
+	main_hex_val += round;
+	next_counter_str = main_hex_val;*/
 
-	//return next_counter;
 	ByteArray test{ 0x00, 0x00, 0x00, 0x00 };
 	return test;
 }
@@ -125,6 +123,12 @@ void generate_counters(vector<ByteArray> &ctrs, const ByteArray &IV)
 
 		res.insert(res.end(), ctr_i.begin(), ctr_i.end());
 		ctrs[i] = res;
+
+		//if (i < 100 && i > 20)
+		//{
+		//	cout << endl << "Ctrs[" << std::dec <<  i << "] = ";
+		//	print_byte_array(ctrs[i]);
+		//}
 	}
 }
 
@@ -161,7 +165,7 @@ const vector<ByteArray> counter_mode_inverse(const vector<ByteArray> &encrypted_
 	for (size_t i = 0; i != encrypted_messages.size(); ++i)
 	{
 		aes = new AES(ctrs[i], key);
-		decrypted_messages[i] = XOR(aes->decrypt(), encrypted_messages[i]);
+		decrypted_messages[i] = XOR(aes->encrypt(), encrypted_messages[i]);
 		delete aes;
 	}
 
