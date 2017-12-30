@@ -34,8 +34,5 @@ bool check_vector_of_byte_arrays(const vector<unsigned char*> &arr1, const vecto
 // Cout hex byte
 void print_byte(const unsigned char &byte);
 
-// Multiplication with log and exp in GF(2^8)
-__device__ unsigned char mul(const unsigned char &x, const unsigned char &y, unsigned char *ltable, unsigned char *atable);
-
 // XOR for ByteArray
 unsigned char* XOR(const unsigned char *arr1, const unsigned char *arr2);

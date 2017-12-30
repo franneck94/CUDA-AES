@@ -15,16 +15,22 @@
 	#define NUM_ROUNDS 10
 	#define SUB_KEYS (NUM_ROUNDS + 1)
 	#define KEY_BLOCK 16
+	#define SHIFT_ROW_LIMIT 3
+	#define MIX_COLUMN_LIMIT 4
 #endif  
 #if AES_BITS == 192  
 	#define NUM_ROUNDS 12
 	#define SUB_KEYS (NUM_ROUNDS + 1)
-	#define KEY_BLOCK 16 
+	#define KEY_BLOCK 24 
+	#define SHIFT_ROW_LIMIT 3
+	#define MIX_COLUMN_LIMIT 6
 #endif  
 #if AES_BITS == 256 
 	#define NUM_ROUNDS 14
 	#define SUB_KEYS (NUM_ROUNDS + 1)
-	#define KEY_BLOCK 16
+	#define KEY_BLOCK 32
+	#define SHIFT_ROW_LIMIT 3
+	#define MIX_COLUMN_LIMIT 8
 #endif  
 
 using std::vector;
@@ -38,17 +44,16 @@ class AES
 
 public:
 	// Constructor
-	AES(unsigned char *message, unsigned char *key);
+	AES(unsigned char *key);
 
 	// Main functions of AES
-	unsigned char* encrypt();
-	unsigned char* decrypt();
+	unsigned char* encrypt(unsigned char *message);
+	unsigned char* decrypt(unsigned char *message);
 
 private:
 	// Member vairables
 	unsigned char *m_key;
 	vector<unsigned char*> m_subkeys;
-	unsigned char *m_message;
 
 	// Key schedule functions
 	void key_schedule();
