@@ -159,8 +159,8 @@ const vector<unsigned char*> counter_mode(const vector<unsigned char*> &messages
 
 	for (size_t i = 0; i != messages.size(); ++i)
 	{
-		aes = new AES(ctrs[i], key);
-		encrypted_messages[i] = XOR(aes->encrypt(), messages[i]);
+		aes = new AES(key);
+		encrypted_messages[i] = XOR(aes->encrypt(ctrs[i]), messages[i]);
 		delete aes;
 	}
 
@@ -179,8 +179,8 @@ const vector<unsigned char*> counter_mode_inverse(const vector<unsigned char *> 
 
 	for (size_t i = 0; i != encrypted_messages.size(); ++i)
 	{
-		aes = new AES(ctrs[i], key);
-		decrypted_messages[i] = XOR(aes->encrypt(), encrypted_messages[i]);
+		aes = new AES(key);
+		decrypted_messages[i] = XOR(aes->encrypt(ctrs[i]), encrypted_messages[i]);
 		delete aes;
 	}
 

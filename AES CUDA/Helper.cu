@@ -72,31 +72,6 @@ void print_byte(const unsigned char &byte)
 	cout << endl << "Byte: " << std::hex << (int)byte;
 }
 
-// Multiplication with log and exp in GF(2^8)
-__device__ unsigned char mul(unsigned char &x, unsigned char &y, unsigned char *ltable, unsigned char *atable)
-{
-	int s;
-	int q;
-	int z = 0;
-
-	s = ltable[x] + ltable[y];
-	s %= 255;
-	s = atable[s];
-	q = s;
-
-	if (x == 0)
-		s = z;
-	else
-		s = q;
-
-	if (y == 0)
-		s = z;
-	else
-		q = z;
-
-	return s;
-}
-
 // XOR for ByteArray
 unsigned char* XOR(const unsigned char *arr1, const unsigned char *arr2)
 {
