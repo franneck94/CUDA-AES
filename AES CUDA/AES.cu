@@ -2,13 +2,13 @@
 /*                       INCLUDES AND DEFINES                        */
 /*********************************************************************/
 
-#include <iostream>
-#include <stdlib.h>
-#include <vector>
-
 #include "cuda_runtime.h"
 #include "device_launch_parameters.h"
 #include <cuda.h>
+
+#include <iostream>
+#include <stdlib.h>
+#include <vector>
 
 #include "AES.h"
 #include "Helper.h"
@@ -18,47 +18,184 @@ using std::endl;
 using std::vector;
 
 /*********************************************************************/
+/*                        SUB LAYER KERNEL                           */
+/*********************************************************************/
+
+// Byte substitution (S-Boxes) can be parallel
+__global__ void byte_sub_kernel(unsigned char *message)
+{
+	int id = blockIdx.x*blockDim.x + threadIdx.x;
+
+	if (id < KEY_BLOCK)
+	{
+		message[id] = d_sbox[message[id]];
+	}
+}
+
+// Inverse byte substitution (S-Boxes) can be parallel
+__global__ void byte_sub_inv_kernel(unsigned char *message)
+{
+	int id = blockIdx.x*blockDim.x + threadIdx.x;
+
+	if (id < KEY_BLOCK)
+	{
+		message[id] = d_sboxinv[message[id]];
+	}
+}
+
+// Shift rows - can be parallel
+// B0, B4, B8, B12 stays the same
+__global__ void shift_rows_kernel(unsigned char *message)
+{
+	int id = blockIdx.x*blockDim.x + threadIdx.x;
+	unsigned char j = 0, k = 0;
+
+	if (id < SHIFT_ROW_LIMIT)
+	{
+		if (id == 0)
+		{
+			j = message[1];
+			message[1] = message[5];
+			message[5] = message[9];
+			message[9] = message[13];
+			message[13] = j;
+		}
+		else if (id == 1)
+		{
+			j = message[10];
+			k = message[14];
+			message[10] = message[2];
+			message[2] = j;
+			message[14] = message[6];
+			message[6] = k;
+		}
+		else
+		{
+			k = message[3];
+			message[3] = message[15];
+			message[15] = message[11];
+			message[11] = message[7];
+			message[7] = k;
+		}
+	}
+}
+
+// Inverse shift rows - can be parallel
+// C0, C4, C8, C12 stays the same
+__global__ void shift_rows_inv_kernel(unsigned char *message)
+{
+	int id = blockIdx.x*blockDim.x + threadIdx.x;
+	unsigned char j = 0, k = 0;
+
+	if (id < SHIFT_ROW_LIMIT)
+	{
+		if (id == 0)
+		{
+			j = message[1];
+			message[1] = message[13];
+			message[13] = message[9];
+			message[9] = message[5];
+			message[5] = j;
+		}
+		else if (id == 1)
+		{
+			j = message[2];
+			k = message[6];
+			message[2] = message[10];
+			message[10] = j;
+			message[6] = message[14];
+			message[14] = k;
+		}
+		else
+		{
+			j = message[3];
+			message[3] = message[7];
+			message[7] = message[11];
+			message[11] = message[15];
+			message[15] = j;
+		}
+	}
+}
+
+// Mix column - can be parallel
+__global__ void mix_columns_kernel(unsigned char *message)
+{
+	unsigned char b0, b1, b2, b3;
+	int id = blockIdx.x*blockDim.x + threadIdx.x;
+
+	if (id < MIX_COLUMN_LIMIT)
+	{
+		b0 = message[id + 0];
+		b1 = message[id + 1];
+		b2 = message[id + 2];
+		b3 = message[id + 3];
+
+		// Mix-Col Matrix * b vector
+		message[id + 0] = d_mul[b0][0] ^ d_mul[b1][1] ^ b2 ^ b3;
+		message[id + 1] = b0 ^ d_mul[b1][0] ^ d_mul[b2][1] ^ b3;
+		message[id + 2] = b0 ^ b1 ^ d_mul[b2][0] ^ d_mul[b3][1];
+		message[id + 3] = d_mul[b0][1] ^ b1 ^ b2 ^ d_mul[b3][0];
+	}
+}
+
+// Inverse mix column
+__global__ void mix_columns_inv_kernel(unsigned char *message)
+{
+	unsigned char c0, c1, c2, c3;
+	int id = blockIdx.x*blockDim.x + threadIdx.x;
+
+	if (id < MIX_COLUMN_LIMIT)
+	{
+		c0 = message[id + 0];
+		c1 = message[id + 1];
+		c2 = message[id + 2];
+		c3 = message[id + 3];
+
+		// Mix-Col Inverse Matrix * c vector
+		message[id + 0] = d_mul[c0][5] ^ d_mul[c1][3] ^ d_mul[c2][4] ^ d_mul[c3][2];
+		message[id + 1] = d_mul[c0][2] ^ d_mul[c1][5] ^ d_mul[c2][3] ^ d_mul[c3][4];
+		message[id + 2] = d_mul[c0][4] ^ d_mul[c1][2] ^ d_mul[c2][5] ^ d_mul[c3][3];
+		message[id + 3] = d_mul[c0][3] ^ d_mul[c1][4] ^ d_mul[c2][2] ^ d_mul[c3][5];
+	}
+}
+
+// Key Addition Kernel
+__global__ void key_addition_kernel(unsigned char *message, unsigned char *subkey)
+{
+	int id = blockIdx.x*blockDim.x + threadIdx.x;
+
+	if (id < KEY_BLOCK)
+	{
+		message[id] = message[id] ^ subkey[id];
+	}
+}
+
+/*********************************************************************/
 /*                           CONSTRUCTORS                            */
 /*********************************************************************/
 
 // Constructor of AES en/decryption
-AES::AES() : m_subkeys(SUB_KEYS)
+AES::AES(unsigned char *key) : m_subkeys(SUB_KEYS)
 {
-	cout << "AES datastream created!" << endl;
-
-	m_message = { 0x76, 0x49, 0xab, 0xac, 0x81, 0x19, 0xb2, 0x46,
-				0xce, 0xe9, 0x8e, 0x9b, 0x12, 0xe9, 0x19, 0x7d};
-
-	m_key = { 0xde, 0xca, 0xfb, 0xad,
-			0xc0, 0xde, 0xba, 0x5e,
-			0xde, 0xad, 0xc0, 0xde,
-			0xba, 0xdc, 0x0d, 0xed};
-
+	m_key = key;
 	key_schedule();
 }
-
-// Destructor of AES en/decryption
-AES::~AES()
-{
-	cout << "AES datastream deleted!" << endl;
-}
-
 
 /*********************************************************************/
 /*                       EN- DECRYPTION FUNCTIONS                    */
 /*********************************************************************/
 
 // Starting the encryption phase
-ByteArray AES::encrypt(ByteArray &message)
+unsigned char* AES::encrypt(unsigned char *message)
 {
-	register int i = 0, round = 0;
+	register int round = 0;
 
 	// Key-Add before round 1 (R0)
 	key_addition(message, round);
 	round = 1;
 
 	// Round 1 to NUM_ROUNDS - 1 (R1 to R9)
-	for (round; round != NUM_ROUNDS; ++round)
+	for (round; round != NUM_ROUNDS; round++)
 	{
 		byte_sub(message);
 		shift_rows(message);
@@ -72,15 +209,13 @@ ByteArray AES::encrypt(ByteArray &message)
 	shift_rows(message);
 	key_addition(message, round);
 
-	// Save encrypted message
-	m_encrypted_message = message;
 	return message;
 }
 
 // Starting the decryption phase
-ByteArray AES::decrypt(ByteArray &message)
+unsigned char* AES::decrypt(unsigned char *message)
 {
-	register int i = 0, round = NUM_ROUNDS;
+	register int round = NUM_ROUNDS;
 
 	// Key-Add before round (Inverse NUM_ROUNDS)
 	key_addition(message, round);
@@ -89,7 +224,7 @@ ByteArray AES::decrypt(ByteArray &message)
 	round = NUM_ROUNDS - 1;
 
 	// Round NUM_ROUNDS - 1 to 1 (Inverse R9 to R1)
-	for (round; round > 0; --round)
+	for (round; round > 0; round--)
 	{
 		key_addition(message, round);
 		mix_columns_inv(message);
@@ -101,8 +236,6 @@ ByteArray AES::decrypt(ByteArray &message)
 	round = 0;
 	key_addition(message, round);
 
-	// Save decrypted message
-	m_decrypted_message = message;
 	return message;
 }
 
@@ -130,9 +263,11 @@ void AES::key_schedule()
 }
 
 // Computing subkeys for round 1 up to 10
-ByteArray AES::sub_key128(ByteArray &prev_subkey, const int &r)
+unsigned char* AES::sub_key128(unsigned char *prev_subkey, const int &r)
 {
-	ByteArray result(KEY_BLOCK);
+	unsigned char *result;
+	result = new unsigned char[KEY_BLOCK];
+
 	register int i;
 
 	result[0] = (prev_subkey[0] ^ (sbox[prev_subkey[13]] ^ RC[r]));
@@ -156,121 +291,127 @@ ByteArray AES::sub_key128(ByteArray &prev_subkey, const int &r)
 /*********************************************************************/
 
 // Byte substitution (S-Boxes) can be parallel
-void AES::byte_sub(ByteArray &message)
+void AES::byte_sub(unsigned char *message)
 {
-	register int i = 0;
+	dim3 dim_block(KEY_BLOCK);
+	dim3 dim_grid(1);
 
-	for (i; i != KEY_BLOCK; ++i)
-		message[i] = sbox[message[i]];
+	int size_message = sizeof(message);
+	unsigned char *d_message;
+	cudaMalloc((void **)&d_message, size_message);
+	cudaMemcpy(d_message, message, size_message, cudaMemcpyHostToDevice);
+
+	byte_sub_kernel <<<dim_grid, dim_block >>>(d_message);
+
+	cudaMemcpy(message, d_message, size_message, cudaMemcpyDeviceToHost);
+	cudaFree(d_message);
 }
 
 // Inverse byte substitution (S-Boxes) can be parallel
-void AES::byte_sub_inv(ByteArray &message)
+void AES::byte_sub_inv(unsigned char *message)
 {
-	register int i = 0;
+	dim3 dim_block(KEY_BLOCK);
+	dim3 dim_grid(1);
 
-	for (i; i != KEY_BLOCK; ++i)
-		message[i] = sboxinv[message[i]];
+	int size_message = sizeof(message);
+	unsigned char *d_message;
+	cudaMalloc((void **)&d_message, size_message);
+	cudaMemcpy(d_message, message, size_message, cudaMemcpyHostToDevice);
+
+	byte_sub_inv_kernel <<<dim_grid, dim_block>>>(d_message);
+
+	cudaMemcpy(message, d_message, size_message, cudaMemcpyDeviceToHost);
+	cudaFree(d_message);
 }
 
 // Shift rows - can be parallel
 // B0, B4, B8, B12 stays the same
-void AES::shift_rows(ByteArray &message)
+void AES::shift_rows(unsigned char *message)
 {
-	register unsigned char i, j, k, l; 
+	dim3 dim_block(3);
+	dim3 dim_grid(1);
 
-	i = message[1];
-	message[1] = message[5];
-	message[5] = message[9];
-	message[9] = message[13];
-	message[13] = i;
+	int size_message = sizeof(message);
+	unsigned char *d_message;
+	cudaMalloc((void **)&d_message, size_message);
+	cudaMemcpy(d_message, message, size_message, cudaMemcpyHostToDevice);
 
-	j = message[10];
-	message[10] = message[2];
-	message[2] = j;
-	l = message[14];
-	message[14] = message[6];
-	message[6] = l;
+	shift_rows_kernel <<<dim_grid, dim_block>>>(d_message);
 
-	k = message[3];
-	message[3] = message[15];
-	message[15] = message[11];
-	message[11] = message[7];
-	message[7] = k;
+	cudaMemcpy(message, d_message, size_message, cudaMemcpyDeviceToHost);
+	cudaFree(d_message);
 }
 
 // Inverse shift rows - can be parallel
 // C0, C4, C8, C12 stays the same
-void AES::shift_rows_inv(ByteArray &message)
+void AES::shift_rows_inv(unsigned char *message)
 {
-	register unsigned char i, j, k, l; 
+	dim3 dim_block(3);
+	dim3 dim_grid(1);
 
-	i = message[1];
-	message[1] = message[13];
-	message[13] = message[9];
-	message[9] = message[5];
-	message[5] = i;
+	int size_message = sizeof(message);
+	unsigned char *d_message;
+	cudaMalloc((void **)&d_message, size_message);
+	cudaMemcpy(d_message, message, size_message, cudaMemcpyHostToDevice);
 
-	j = message[2];
-	message[2] = message[10];
-	message[10] = j;
-	l = message[6];
-	message[6] = message[14];
-	message[14] = l;
+	shift_rows_inv_kernel<<<dim_grid, dim_block>>>(d_message);
 
-	k = message[3];
-	message[3] = message[7];
-	message[7] = message[11];
-	message[11] = message[15];
-	message[15] = k;
+	cudaMemcpy(message, d_message, size_message, cudaMemcpyDeviceToHost);
+	cudaFree(d_message);
 }
 
 // Mix column - can be parallel
-void AES::mix_columns(ByteArray &message)
+void AES::mix_columns(unsigned char *message)
 {
-	register unsigned char b0, b1, b2, b3;
-	register int i;
+	dim3 dim_block(MIX_COLUMN_LIMIT);
+	dim3 dim_grid(1);
 
-	for (i = 0; i != KEY_BLOCK; i += 4)
-	{
-		b0 = message[i + 0];
-		b1 = message[i + 1];
-		b2 = message[i + 2];
-		b3 = message[i + 3];
+	int size_message = sizeof(message);
+	unsigned char *d_message;
+	cudaMalloc((void **)&d_message, size_message);
+	cudaMemcpy(d_message, message, size_message, cudaMemcpyHostToDevice);
 
-		// Mix-Col Matrix * b vector
-		message[i + 0] = mul(b0, 0x02) ^ mul(b1, 0x03) ^ b2 ^ b3;
-		message[i + 1] = b0 ^ mul(b1, 0x02) ^ mul(b2, 0x03) ^ b3;
-		message[i + 2] = b0 ^ b1 ^ mul(b2, 0x02) ^ mul(b3, 0x03);
-		message[i + 3] = mul(b0, 0x03) ^ b1 ^ b2 ^ mul(b3, 0x02);
-	}
+	mix_columns_kernel <<<dim_grid, dim_block>>>(d_message);
+
+	cudaMemcpy(message, d_message, size_message, cudaMemcpyDeviceToHost);
+	cudaFree(d_message);
 }
 
 // Inverse mix column
-void AES::mix_columns_inv(ByteArray &message)
+void AES::mix_columns_inv(unsigned char *message)
 {
-	register unsigned char c0, c1, c2, c3;
-	register int i;
+	dim3 dim_block(MIX_COLUMN_LIMIT);
+	dim3 dim_grid(1);
 
-	for (i = 0; i != KEY_BLOCK; i += 4)
-	{
-		c0 = message[i + 0];
-		c1 = message[i + 1];
-		c2 = message[i + 2];
-		c3 = message[i + 3];
+	int size_message = sizeof(message);
+	unsigned char *d_message;
+	cudaMalloc((void **)&d_message, size_message);
+	cudaMemcpy(d_message, message, size_message, cudaMemcpyHostToDevice);
 
-		// Mix-Col Inverse Matrix * c vector
-		message[i + 0] = mul(c0, 0x0e) ^ mul(c1, 0x0b) ^ mul(c2, 0x0d) ^ mul(c3, 0x09);
-		message[i + 1] = mul(c0, 0x09) ^ mul(c1, 0x0e) ^ mul(c2, 0x0b) ^ mul(c3, 0x0d);
-		message[i + 2] = mul(c0, 0x0d) ^ mul(c1, 0x09) ^ mul(c2, 0x0e) ^ mul(c3, 0x0b);
-		message[i + 3] = mul(c0, 0x0b) ^ mul(c1, 0x0d) ^ mul(c2, 0x09) ^ mul(c3, 0x0e);
-	}
+	mix_columns_inv_kernel <<<dim_grid, dim_block>>>(d_message);
+
+	cudaMemcpy(message, d_message, size_message, cudaMemcpyDeviceToHost);
+	cudaFree(d_message);
 }
 
-void AES::key_addition(ByteArray &message, const int &r)
+void AES::key_addition(unsigned char *message, const int &r)
 {
-	register int i = 0;
+	dim3 dim_block(KEY_BLOCK);
+	dim3 dim_grid(1);
 
-	for (i; i != message.size(); ++i)
-		message[i] ^= m_subkeys[r][i];
+	int size_message = sizeof(message);
+	unsigned char *d_message;
+	cudaMalloc((void **)&d_message, size_message);
+	cudaMemcpy(d_message, message, size_message, cudaMemcpyHostToDevice);
+
+	int size_subkey = sizeof(m_subkeys[r]);
+	unsigned char *d_subkey = &m_subkeys[r][0];
+	cudaMalloc((void **)&d_subkey, size_subkey);
+	cudaMemcpy(d_subkey, &m_subkeys[r], size_subkey, cudaMemcpyHostToDevice);
+
+	key_addition_kernel <<<dim_grid, dim_block>>>(d_message, d_subkey);
+
+	cudaMemcpy(message, d_message, size_message, cudaMemcpyDeviceToHost);
+	cudaFree(d_message);
+	cudaFree(d_subkey);
 }

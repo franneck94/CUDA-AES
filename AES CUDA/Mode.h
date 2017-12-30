@@ -4,12 +4,16 @@
 /*                       INCLUDES AND DEFINES                        */
 /*********************************************************************/
 
+#include "cuda_runtime.h"
+#include "device_launch_parameters.h"
+#include <cuda.h>
+
 #include <vector>
 #include <string>
 #include <iostream>
 
-#include "Helper.hpp"
-#include "AES.hpp"
+#include "Helper.h"
+#include "AES.h"
 
 using std::cout;
 using std::endl;
@@ -21,27 +25,27 @@ using std::string;
 /*********************************************************************/
 
 // Read-In Datafile in Hex-Format and Vector of ByteArrays
-const vector<ByteArray> read_datafile(const string &file_path);
+const vector<unsigned char*> read_datafile(const string &file_path);
 
 // Read-In Key  Datafile in Hex-Format
-const ByteArray read_key(const string &file_path);
+unsigned char* read_key(const string &file_path);
 
 // Generate Random ByteArray
-const ByteArray random_byte_array(const unsigned int &length);
+unsigned char* random_byte_array(const unsigned int &length);
 
 // Increment Counter TODO!
-ByteArray increment_counter(const ByteArray &start_counter,
-							const unsigned int &round);
+unsigned char* increment_counter(const unsigned char *start_counter,
+								const unsigned int &round);
 
 // Generate Counters for all Rounds
-void generate_counters(vector<ByteArray> &ctrs, const ByteArray &IV);
+void generate_counters(vector<unsigned char*> &ctrs, const unsigned char *IV);
 
 // Execute the Counter Mode for all Message Blocks
-const vector<ByteArray> counter_mode(const vector<ByteArray> &messages,
-									const ByteArray &key,
-									const ByteArray &IV);
+const vector<unsigned char*> counter_mode(const vector<unsigned char *> &messages,
+										unsigned char *key,
+										unsigned char *IV);
 
 // Execute the Inverse Counter Mode for all Decrypted Message Blocks
-const vector<ByteArray> counter_mode_inverse(const vector<ByteArray> &encrypted_messages,
-											const ByteArray &key,
-											const ByteArray &IV);
+const vector<unsigned char*> counter_mode_inverse(const vector<unsigned char *> &encrypted_messages,
+												unsigned char *key,
+												unsigned char *IV);
