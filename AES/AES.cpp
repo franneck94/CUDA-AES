@@ -218,10 +218,10 @@ void AES::mix_columns(ByteArray &message)
 		b3 = message[i + 3];
 
 		// Mix-Col Matrix * b vector
-		message[i + 0] = mul(b0, 0x02) ^ mul(b1, 0x03) ^ b2 ^ b3;
-		message[i + 1] = b0 ^ mul(b1, 0x02) ^ mul(b2, 0x03) ^ b3;
-		message[i + 2] = b0 ^ b1 ^ mul(b2, 0x02) ^ mul(b3, 0x03);
-		message[i + 3] = mul(b0, 0x03) ^ b1 ^ b2 ^ mul(b3, 0x02);
+		message[i + 0] = mul[b0][0] ^ mul[b1][1] ^ b2 ^ b3;
+		message[i + 1] = b0 ^ mul[b1][0] ^ mul[b2][1] ^ b3;
+		message[i + 2] = b0 ^ b1 ^ mul[b2][0] ^ mul[b3][1];
+		message[i + 3] = mul[b0][1] ^ b1 ^ b2 ^ mul[b3][0];
 	}
 }
 
@@ -239,10 +239,10 @@ void AES::mix_columns_inv(ByteArray &message)
 		c3 = message[i + 3];
 
 		// Mix-Col Inverse Matrix * c vector
-		message[i + 0] = mul(c0, 0x0e) ^ mul(c1, 0x0b) ^ mul(c2, 0x0d) ^ mul(c3, 0x09);
-		message[i + 1] = mul(c0, 0x09) ^ mul(c1, 0x0e) ^ mul(c2, 0x0b) ^ mul(c3, 0x0d);
-		message[i + 2] = mul(c0, 0x0d) ^ mul(c1, 0x09) ^ mul(c2, 0x0e) ^ mul(c3, 0x0b);
-		message[i + 3] = mul(c0, 0x0b) ^ mul(c1, 0x0d) ^ mul(c2, 0x09) ^ mul(c3, 0x0e);
+		message[i + 0] = mul[c0][5] ^ mul[c1][3] ^ mul[c2][4] ^ mul[c3][2];
+		message[i + 1] = mul[c0][2] ^ mul[c1][5] ^ mul[c2][3] ^ mul[c3][4];
+		message[i + 2] = mul[c0][4] ^ mul[c1][2] ^ mul[c2][5] ^ mul[c3][3];
+		message[i + 3] = mul[c0][3] ^ mul[c1][4] ^ mul[c2][2] ^ mul[c3][5];
 	}
 }
 

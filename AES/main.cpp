@@ -21,8 +21,7 @@ int main()
 {
 	// Define Variables
 	unsigned int iv_length = 12;
-	float milliseconds_encryption = 0.0f;
-	float milliseconds_decryption = 0.0f;
+	float microseconds = 0.0f;
 
 	string file_path_key = "C:/Users/Jan/Dropbox/Master AI/Parallel Computing/Project/key.txt";
 	string file_path_messages = "C:/Users/Jan/Dropbox/Master AI/Parallel Computing/Project/decrypt.txt";
@@ -44,16 +43,16 @@ int main()
 	encrypted_solution = counter_mode(messages, key, IV);
 	auto end_time = std::chrono::high_resolution_clock::now();
 	auto time = end_time - start_time;
-	milliseconds_encryption = std::chrono::duration_cast<std::chrono::microseconds>(time).count();
-	cout << endl << "Serial Encrypted Duration: " << milliseconds_encryption << " (us)." << endl;
+	microseconds = std::chrono::duration_cast<std::chrono::microseconds>(time).count();
+	cout << endl << "Serial Encrypted Duration: " << microseconds << " (us)." << endl;
 
 	// Starting Timers and Counter Mode for Decryption
 	start_time = std::chrono::high_resolution_clock::now();
 	decrypted_solution = counter_mode_inverse(encrypted_solution, key, IV);
 	end_time = std::chrono::high_resolution_clock::now();
 	time = end_time - start_time;
-	milliseconds_encryption = std::chrono::duration_cast<std::chrono::microseconds>(time).count();
-	cout << endl << "Serial Encrypted Duration: " << milliseconds_encryption << " (us)." << endl;
+	microseconds = std::chrono::duration_cast<std::chrono::microseconds>(time).count();
+	cout << endl << "Serial Encrypted Duration: " << microseconds << " (us)." << endl;
 
 	cout << endl << "Legit solution: " << check_vector_of_byte_arrays(decrypted_solution, messages) << endl;
 
