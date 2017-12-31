@@ -18,9 +18,8 @@ using std::vector;
 /*********************************************************************/
 
 // Constructor of AES en/decryption
-AES::AES(const ByteArray &message, const ByteArray &key) : m_subkeys(SUB_KEYS)
+AES::AES(const ByteArray &key) : m_subkeys(SUB_KEYS)
 {
-	m_message = message;
 	m_key = key;
 	key_schedule();
 }
@@ -30,7 +29,7 @@ AES::AES(const ByteArray &message, const ByteArray &key) : m_subkeys(SUB_KEYS)
 /*********************************************************************/
 
 // Starting the encryption phase
-ByteArray AES::encrypt()
+ByteArray AES::encrypt(const ByteArray &m_message)
 {
 	register int i = 0, round = 0;
 	ByteArray message = m_message;
@@ -58,7 +57,7 @@ ByteArray AES::encrypt()
 }
 
 // Starting the decryption phase
-ByteArray AES::decrypt()
+ByteArray AES::decrypt(const ByteArray &m_message)
 {
 	register int i = 0, round = NUM_ROUNDS;
 	ByteArray message = m_message;

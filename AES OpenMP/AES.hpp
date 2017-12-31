@@ -12,19 +12,19 @@
 #define AES_BITS 128
 
 #if AES_BITS == 128  
-#define NUM_ROUNDS 10
-#define SUB_KEYS (NUM_ROUNDS + 1)
-#define KEY_BLOCK 16
+	#define NUM_ROUNDS 10
+	#define SUB_KEYS (NUM_ROUNDS + 1)
+	#define KEY_BLOCK 16
 #endif  
 #if AES_BITS == 192  
-#define NUM_ROUNDS 12
-#define SUB_KEYS (NUM_ROUNDS + 1)
-#define KEY_BLOCK 16 
+	#define NUM_ROUNDS 12
+	#define SUB_KEYS (NUM_ROUNDS + 1)
+	#define KEY_BLOCK 24
 #endif  
 #if AES_BITS == 256 
-#define NUM_ROUNDS 14
-#define SUB_KEYS (NUM_ROUNDS + 1)
-#define KEY_BLOCK 16
+	#define NUM_ROUNDS 14
+	#define SUB_KEYS (NUM_ROUNDS + 1)
+	#define KEY_BLOCK 32
 #endif   
 
 typedef std::vector<unsigned char> ByteArray;
@@ -39,16 +39,15 @@ class AES
 
 public:
 	// Constructor
-	AES(const ByteArray &message, const ByteArray &key);
+	AES(const ByteArray &key);
 	// Main functions of AES
-	ByteArray encrypt();
-	ByteArray decrypt();
+	ByteArray encrypt(const ByteArray &m_message);
+	ByteArray decrypt(const ByteArray &m_message);
 
 private:
 	// Member vairables
 	ByteArray m_key;
 	vector<ByteArray> m_subkeys;
-	ByteArray m_message;
 
 	// Key schedule functions
 	void key_schedule();

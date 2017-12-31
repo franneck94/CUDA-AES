@@ -24,9 +24,8 @@ int main()
 	float microseconds = 0.0f;
 
 	string file_path_key = "C:/Users/Jan/Dropbox/Master AI/Parallel Computing/Project/key.txt";
-	string file_path_messages = "C:/Users/Jan/Dropbox/Master AI/Parallel Computing/Project/decrypt.txt";
-	string file_path_encrypted_messages = "C:/Users/Jan/Dropbox/Master AI/Parallel Computing/Project/encrypt.txt";
-	
+	string file_path_messages = "C:/Users/Jan/Dropbox/Master AI/Parallel Computing/Project/text.txt";
+
 	vector<ByteArray> decrypted_solution;
 	vector<ByteArray> encrypted_solution;
 
@@ -36,7 +35,6 @@ int main()
 	ByteArray key = read_key(file_path_key);
 	ByteArray IV = random_byte_array(iv_length);
 	vector<ByteArray> messages = read_datafile(file_path_messages);
-	vector<ByteArray> encrpyted_messages = read_datafile(file_path_encrypted_messages);
 
 	// Starting Timers and Counter Mode for Encryption
 	auto start_time = std::chrono::high_resolution_clock::now();
@@ -44,7 +42,7 @@ int main()
 	auto end_time = std::chrono::high_resolution_clock::now();
 	auto time = end_time - start_time;
 	microseconds = std::chrono::duration_cast<std::chrono::microseconds>(time).count();
-	cout << endl << "Serial Encrypted Duration: " << microseconds << " (us)." << endl;
+	cout << endl << "OpenMP Encrypted Duration: " << microseconds << " (us)." << endl;
 
 	// Starting Timers and Counter Mode for Decryption
 	start_time = std::chrono::high_resolution_clock::now();
@@ -52,7 +50,7 @@ int main()
 	end_time = std::chrono::high_resolution_clock::now();
 	time = end_time - start_time;
 	microseconds = std::chrono::duration_cast<std::chrono::microseconds>(time).count();
-	cout << endl << "Serial Encrypted Duration: " << microseconds << " (us)." << endl;
+	cout << endl << "OpenMP Encrypted Duration: " << microseconds << " (us)." << endl;
 
 	cout << endl << "Legit solution: " << check_vector_of_byte_arrays(decrypted_solution, messages) << endl;
 

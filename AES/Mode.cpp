@@ -123,12 +123,6 @@ void generate_counters(vector<ByteArray> &ctrs, const ByteArray &IV)
 
 		res.insert(res.end(), ctr_i.begin(), ctr_i.end());
 		ctrs[i] = res;
-
-		//if (i < 100 && i > 20)
-		//{
-		//	cout << endl << "Ctrs[" << std::dec <<  i << "] = ";
-		//	print_byte_array(ctrs[i]);
-		//}
 	}
 }
 
@@ -137,17 +131,16 @@ const vector<ByteArray> counter_mode(const vector<ByteArray> &messages,
 									const ByteArray &key,
 									const ByteArray &IV)
 {
-	AES *aes;
+	AES aes(key);
 	vector<ByteArray> encrypted_messages(messages.size(), vector<unsigned char>(KEY_BLOCK, 0x00));
 	vector<ByteArray> ctrs(messages.size(), vector<unsigned char>(KEY_BLOCK, 0x00));
 	generate_counters(ctrs, IV);
 
 	for (size_t i = 0; i != messages.size(); ++i)
 	{
-		aes = new AES(ctrs[i], key);
-		encrypted_messages[i] = XOR(aes->encrypt(), messages[i]);
-		delete aes;
+		encrypted_messages[i] = XOR(aes.encrypt(ctrs[i]), messages[i]);
 	}
+	aes.~AES();
 
 	return encrypted_messages;
 }
@@ -157,17 +150,16 @@ const vector<ByteArray> counter_mode_inverse(const vector<ByteArray> &encrypted_
 											const ByteArray &key,
 											const ByteArray &IV)
 {
-	AES *aes;
+	AES aes(key);
 	vector<ByteArray> decrypted_messages(encrypted_messages.size(), vector<unsigned char>(KEY_BLOCK, 0x00));
 	vector<ByteArray> ctrs(encrypted_messages.size(), vector<unsigned char>(KEY_BLOCK, 0x00));
 	generate_counters(ctrs, IV);
 
 	for (size_t i = 0; i != encrypted_messages.size(); ++i)
 	{
-		aes = new AES(ctrs[i], key);
-		decrypted_messages[i] = XOR(aes->encrypt(), encrypted_messages[i]);
-		delete aes;
+		decrypted_messages[i] = XOR(aes.encrypt(ctrs[i]), encrypted_messages[i]);
 	}
+	aes.~AES();
 
 	return decrypted_messages;
 }
