@@ -247,8 +247,5 @@ void AES::mix_columns_inv(ByteArray &message)
 
 void AES::key_addition(ByteArray &message, const int &r)
 {
-	register int i = 0;
-
-	for (i; i != message.size(); ++i)
-		message[i] ^= m_subkeys[r][i];
+	XOR(message, m_subkeys[r], KEY_BLOCK);
 }

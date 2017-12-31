@@ -23,75 +23,6 @@ using std::ifstream;
 /*                     COUNTER MODE FUNCTIONS                        */
 /*********************************************************************/
 
-// Read-In Datafile in Hex-Format and Vector of ByteArrays
-const vector<ByteArray> read_datafile(const string &file_path)
-{
-	vector<ByteArray> data;
-	char act_char;
-	unsigned int counter = 0;
-	ByteArray next_byte_array;
-	ifstream infile;
-
-	infile.open(file_path);
-
-	while (!infile.eof())
-	{
-		if (counter < KEY_BLOCK)
-		{
-			infile.get(act_char);
-			next_byte_array.push_back(act_char);
-			counter++;
-		}
-		else
-		{
-			data.push_back(next_byte_array);
-			next_byte_array = {};
-			counter = 0;
-		}
-	}
-
-	infile.close();
-	return data;
-}
-
-// Read-In Key Datafile in Hex-Format
-const ByteArray read_key(const string &file_path)
-{
-	ByteArray data;
-	char act_char;
-	unsigned int counter = 0;
-	ifstream infile;
-
-	infile.open(file_path);
-
-	while (!infile.eof() && counter < KEY_BLOCK)
-	{
-		infile.get(act_char);
-		data.push_back(act_char);
-		counter++;
-	}
-
-	infile.close();
-	return data;
-}
-
-// Generate IV-Vector for Counter Mode
-const ByteArray random_byte_array(const unsigned int &length)
-{
-	ByteArray byte_array(length);
-
-	std::random_device rd;
-	std::mt19937 generator(rd());
-	std::uniform_int_distribution<int> distribution(0, 15);
-
-	for (size_t i = 0; i != byte_array.size(); ++i)
-	{
-		byte_array[i] = (unsigned char) distribution(generator);
-	}
-
-	return byte_array;
-}
-
 // Increment Counter TODO!
 ByteArray increment_counter(const ByteArray &start_counter,
 							const unsigned int &round)
@@ -140,7 +71,6 @@ const vector<ByteArray> counter_mode(const vector<ByteArray> &messages,
 	{
 		encrypted_messages[i] = XOR(aes.encrypt(ctrs[i]), messages[i]);
 	}
-	aes.~AES();
 
 	return encrypted_messages;
 }
@@ -159,7 +89,6 @@ const vector<ByteArray> counter_mode_inverse(const vector<ByteArray> &encrypted_
 	{
 		decrypted_messages[i] = XOR(aes.encrypt(ctrs[i]), encrypted_messages[i]);
 	}
-	aes.~AES();
 
 	return decrypted_messages;
 }

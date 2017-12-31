@@ -153,6 +153,8 @@ const vector<unsigned char*> counter_mode(const vector<unsigned char*> &messages
 										unsigned char *IV)
 {
 	AES *aes;
+	unsigned char **subkeys;
+
 	vector<unsigned char*> encrypted_messages(messages.size());
 	vector<unsigned char*> ctrs(messages.size());
 	generate_counters(ctrs, IV);
@@ -160,7 +162,9 @@ const vector<unsigned char*> counter_mode(const vector<unsigned char*> &messages
 	for (size_t i = 0; i != messages.size(); ++i)
 	{
 		aes = new AES(key);
-		encrypted_messages[i] = XOR(aes->encrypt(ctrs[i]), messages[i]);
+		subkeys = aes->get_subkeys();
+		encrypt(ctrs[i], subkeys);
+		encrypted_messages[i] = XOR(ctrs[i], messages[i]);
 		delete aes;
 	}
 
@@ -173,6 +177,8 @@ const vector<unsigned char*> counter_mode_inverse(const vector<unsigned char *> 
 												unsigned char *IV)
 {
 	AES *aes;
+	unsigned char **subkeys;
+
 	vector<unsigned char*> decrypted_messages(encrypted_messages.size());
 	vector<unsigned char*> ctrs(encrypted_messages.size());
 	generate_counters(ctrs, IV);
@@ -180,7 +186,9 @@ const vector<unsigned char*> counter_mode_inverse(const vector<unsigned char *> 
 	for (size_t i = 0; i != encrypted_messages.size(); ++i)
 	{
 		aes = new AES(key);
-		decrypted_messages[i] = XOR(aes->encrypt(ctrs[i]), encrypted_messages[i]);
+		subkeys = aes->get_subkeys();
+		encrypt(ctrs[i], subkeys);
+		decrypted_messages[i] = XOR(ctrs[i], encrypted_messages[i]);
 		delete aes;
 	}
 
