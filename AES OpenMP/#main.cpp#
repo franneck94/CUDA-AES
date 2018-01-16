@@ -7,7 +7,6 @@
 #include <vector>
 #include <chrono>
 #include <string>
-#include <omp.h>
 
 #include "Helper.hpp"
 #include "AES.hpp"
@@ -20,7 +19,6 @@ using std::string;
 
 int main()
 {
-  //    omp_set_nested(1);
 	// Define Variables
 	unsigned int iv_length = 12;
 	float microseconds = 0.0f;
@@ -48,8 +46,7 @@ int main()
 
 	// Starting Timers and Counter Mode for Decryption
 	start_time = std::chrono::high_resolution_clock::now();
-	decrypted_solution = counter_mode_inverse(encrypted_solution, key, IV);
-	end_time = std::chrono::high_resolution_clock::now();
+	decrypted_solution = counter_mode_inverse(encrypted_solution, key, IV	end_time = std::chrono::high_resolution_clock::now();
 	time = end_time - start_time;
 	microseconds = std::chrono::duration_cast<std::chrono::microseconds>(time).count();
 	cout << endl << "OpenMP Encrypted Duration: " << microseconds << " (us)." << endl;
