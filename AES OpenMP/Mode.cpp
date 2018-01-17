@@ -8,6 +8,7 @@
 #include <fstream>
 #include <random>
 #include <omp.h>
+#include <inttypes.h>
 
 #include "Helper.hpp"
 #include "Mode.hpp"
@@ -27,24 +28,22 @@ using std::ifstream;
 ByteArray increment_counter(const ByteArray &start_counter,
 							const unsigned int &round)
 {
-  int i;
-  ByteArray new_counter = start_counter;
+  /* Assuming start_counter will be at most of size 8 Byte    
+   */
+  int64_t ctr_converted = 0x00;
+  unsigned int ctr_size = start_counter.size();
+  ByteArray result(ctr_size, 0x00);
+
+  for (unsigned int i = 0; i<ctr_size; ++i) 
+    ctr_converted += (int64_t)(start_counter[start_counter.size()-i-1]) << 8*i   & (int64_t)0xFF<<8*i;
   
-  for (i = new_counter.size() - 1; i >= 0; --i)
-    {
-      
-      if (new_counter[i] != 0xFF) {	
-	++new_counter[i];
-	return new_counter;
-	
-      } else {	
-	new_counter[i] = 0x00;
-	
-      }
-      
-    }
+  ctr_converted = ctr_converted + (uint64_t)round;
   
-  return new_counter;
+  for (unsigned int i = 0; i<ctr_size; ++i) {
+    result[i] += (ctr_converted >> (ctr_size-1-i)*8) & (int64_t)0xFF;
+  }
+
+  return result;
 }
 
 // Generate Counters for all Rounds
@@ -55,9 +54,9 @@ void generate_counters(vector<ByteArray> &ctrs, const ByteArray &IV)
 	ByteArray res(KEY_BLOCK, 0x00);
 	size_t i = 0;
 	
-	//	#pragma omp parallel private(i, res, ctr_i) shared(ctrs, start_counter, IV) num_threads(2)
+	#pragma omp parallel private(i, res, ctr_i) shared(ctrs, start_counter, IV) num_threads(2)
 	{
-	  //#pragma omp for 
+#pragma omp for 
 		for (i = 0; i < ctrs.size(); ++i)
 		{	       
 
