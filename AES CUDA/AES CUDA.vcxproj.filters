@@ -7,9 +7,6 @@
     <CudaCompile Include="Helper.cu">
       <Filter>Quelldateien</Filter>
     </CudaCompile>
-    <CudaCompile Include="Mode.cu">
-      <Filter>Quelldateien</Filter>
-    </CudaCompile>
     <CudaCompile Include="main.cu">
       <Filter>Quelldateien</Filter>
     </CudaCompile>
@@ -19,9 +16,6 @@
       <Filter>Headerdateien</Filter>
     </ClInclude>
     <ClInclude Include="Helper.h">
-      <Filter>Headerdateien</Filter>
-    </ClInclude>
-    <ClInclude Include="Mode.h">
       <Filter>Headerdateien</Filter>
     </ClInclude>
     <ClInclude Include="Table.h">

@@ -10,6 +10,8 @@
 #include "Table.h"
 
 #define AES_BITS 128
+#define BLOCKS_PER_LAUNCH 5
+#define THREADS_PER_BLOCK 512
 
 #if AES_BITS == 128  
 	#define NUM_ROUNDS 10
@@ -37,40 +39,34 @@ using std::vector;
 
 
 /*********************************************************************/
-/*                            DECLARATIONS                           */
+/*                          DEVICE DECLARATIONS                      */
 /*********************************************************************/
 
-void encrypt(unsigned char *message, unsigned char **subkeys);
-void decrypt(unsigned char *message, unsigned char **subkeys);
+__device__ unsigned char *d_keySchedule;
 
-__global__ void byte_sub_kernel(unsigned char *message);
-__global__ void byte_sub_inv_kernel(unsigned char *message);
-__global__ void shift_rows_kernel(unsigned char *message);
-__global__ void shift_rows_inv_kernel(unsigned char *message);
-__global__ void mix_columns_kernel(unsigned char *message);
-__global__ void mix_columns_inv_kernel(unsigned char *message);
-__global__ void key_addition_kernel(unsigned char *message, unsigned char **subkeys, const unsigned int &round);
-
-
+__device__ void byte_sub_kernel(unsigned char *message);
+__device__ void byte_sub_inv_kernel(unsigned char *message);
+__device__ void shift_rows_kernel(unsigned char *message);
+__device__ void shift_rows_inv_kernel(unsigned char *message);
+__device__ void mix_columns_kernel(unsigned char *message);
+__device__ void mix_columns_inv_kernel(unsigned char *message);
+__device__ void key_addition_kernel(unsigned char *message, unsigned char **subkeys, const unsigned int &round);
 
 /*********************************************************************/
-/*                         CLASS DEFINITION                          */
+/*                          KERNEL DECLARATIONS                      */
 /*********************************************************************/
 
-class AES
-{
+__device__ void aes_encrypt_ctr(const unsigned char in[], unsigned char out[],
+							const unsigned char key[], int keysize, int counter);
+__device__ void aes_encrypt(const unsigned char in[], unsigned char out[],
+							const unsigned char key[], int keysize);
+__device__ void aes_decrypt(const unsigned char in[], unsigned char out[],
+							const unsigned char key[], int keysize);
 
-public:
-	// Constructor
-	AES(unsigned char *key);
-	unsigned char** get_subkeys();
+/*********************************************************************/
+/*                          HOST DECLARATIONS                       */
+/*********************************************************************/
 
-private:
-	// Member vairables
-	unsigned char *m_key;
-	unsigned char** m_subkeys;
-
-	// Key schedule functions
-	void key_schedule();
-	unsigned char* sub_key128(unsigned char *prev_subkey, const int &r);
-};
+void launchKernel(char *inFileName, char *outFileName);
+void aes_key_setup(const unsigned char key[], unsigned char w[], int keysize);
+int getKeySchedule(char *keyFilename);
