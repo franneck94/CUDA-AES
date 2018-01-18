@@ -104,23 +104,27 @@ void print_byte_array(ByteArray &arr)
 // Checks if two Vector of ByteArrays has same values
 bool check_vector_of_byte_arrays(const vector<ByteArray> &arr1, const vector<ByteArray> &arr2)
 {
-	bool check = true; 
+	bool check = true;
+	//bool check_2nd = true;//
 
 	if (arr1.size() != arr2.size())
 		return false;
 
 	for (size_t i = 0; i != arr1.size(); ++i)
 	{
-		if (arr1[i] != arr2[i])
+	  if (arr1[i] != arr2[i])
 			check = check_byte_arrays(arr1[i], arr2[i]);
 		if (!check)
 		{
-			cout << endl << "Error at index i = " << i << endl;
+		  cout << endl << "Error at index i = " << i << " "  << endl;
 			return false;
+			//check_2nd = false;//
 		}
 	}
+	
 
 	return true;
+	//return check_2nd;
 }
 
 // Checks if two ByteArrays has same values
@@ -133,7 +137,7 @@ bool check_byte_arrays(const ByteArray &arr1, const ByteArray &arr2)
 	{
 		if (arr1[i] != arr2[i])
 		{
-			cout << endl << "Error at index i2 = " << i << endl;
+		  cout << endl << "Error at index i2 = " << i << endl;
 			return false;
 		}
 	}
@@ -153,16 +157,15 @@ ByteArray XOR(const ByteArray &arr1, const ByteArray &arr2)
 	ByteArray res(arr1.size(), 0x00);
 	register int i = 0;
 
-	#pragma omp parallel num_threads(4)
-	{
-		#pragma omp parallel for private(i) shared(res, arr1, arr2)
-		{
+	//#pragma omp parallel num_threads(4)
+	//	{
+	  //#pragma omp parallel for private(i) shared(res, arr1, arr2)
 			for (i; i != arr1.size(); ++i)
 			{
 				res[i] = arr1[i] ^ arr2[i];
 			}
-		}
-	}
+	  
+			//	}
 
 	return res;
 }
@@ -172,14 +175,12 @@ void XOR(ByteArray &arr1, const ByteArray &arr2, const unsigned int &length)
 {
 	register int i = 0;
 
-	#pragma omp parallel num_threads(4)
-	{
-		#pragma omp parallel for private(i) shared(arr1, arr2)
-		{
+	//#pragma omp parallel num_threads(4)
+	//	{
+	  //	#pragma omp parallel for private(i) shared(arr1, arr2)	    
 			for (i; i != length; ++i)
 			{
 				arr1[i] = arr1[i] ^ arr2[i];
-			}
-		}
-	}
+			}	      
+			//	}
 }

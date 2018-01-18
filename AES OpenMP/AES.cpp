@@ -138,12 +138,12 @@ ByteArray AES::sub_key128(ByteArray &prev_subkey, const int &r)
 // Byte substitution (S-Boxes) can be parallel
 void AES::byte_sub(ByteArray &message)
 {
-	register int i = 0;
+	register int i;
 
-	#pragma omp parallel num_threads(4)
+	//	#pragma omp parallel private(i) shared(sbox, message) num_threads(2)
 	{
-		#pragma omp parallel for private(i) shared(sbox, message)
-		for (i; i != KEY_BLOCK; ++i)
+	  //#pragma omp for 
+		for (i = 0; i < KEY_BLOCK; ++i)
 			message[i] = sbox[message[i]];
 	}
 }
@@ -151,12 +151,12 @@ void AES::byte_sub(ByteArray &message)
 // Inverse byte substitution (S-Boxes) can be parallel
 void AES::byte_sub_inv(ByteArray &message)
 {
-	register int i = 0;
+  register int i;;
 
-	#pragma omp parallel num_threads(4)
+  //#pragma omp parallel private(i) shared(sboxinv, message) num_threads(4)
 	{
-		#pragma omp parallel for private(i) shared(sboxinv, message)
-		for (i; i != KEY_BLOCK; ++i)
+	  //#pragma omp for 
+		for (i = 0; i < KEY_BLOCK; ++i)
 			message[i] = sboxinv[message[i]];
 	}
 }
@@ -167,10 +167,10 @@ void AES::shift_rows(ByteArray &message)
 {
 	register unsigned char i = 0, j = 0, k = 0; 
 
-	#pragma omp parallel num_threads(4)
+	//#pragma omp parallel private(i, j, k) shared(message) num_threads(2)
 	{
-		#pragma omp parallel for private(i, j, k) shared(message)
-		for (i = 0; i != 3; ++i)
+	  //#pragma omp for schedule(dynamic)
+		for (i = 0; i < 3; ++i)
 		{
 			if (i == 0)
 			{
@@ -207,10 +207,10 @@ void AES::shift_rows_inv(ByteArray &message)
 {
 	register unsigned char i = 0, j = 0, k = 0;
 
-	#pragma omp parallel num_threads(4)
+	//#pragma omp parallel private(i, j, k) shared(message) num_threads(2)
 	{
-		#pragma omp parallel for private(i, j, k) shared(message)
-		for (i = 0; i != 3; ++i)
+	  //#pragma omp for schedule(dynamic)
+		for (i = 0; i < 3; ++i)
 		{
 			if (i == 0)
 			{
@@ -247,10 +247,10 @@ void AES::mix_columns(ByteArray &message)
 	register unsigned char b0, b1, b2, b3;
 	register int i;
 
-	#pragma omp parallel num_threads(4)
+	//#pragma omp parallel private(i, b0, b1, b2, b3) shared(message, mul) num_threads(2)
 	{
-		#pragma omp parallel for private(i, b0, b1, b2, b3) shared(message, mul)
-		for (i = 0; i != KEY_BLOCK; i += 4)
+	  //#pragma omp for schedule(dynamic)
+		for (i = 0; i < KEY_BLOCK; i += 4)
 		{
 			b0 = message[i + 0];
 			b1 = message[i + 1];
@@ -272,10 +272,10 @@ void AES::mix_columns_inv(ByteArray &message)
 	register unsigned char c0, c1, c2, c3;
 	register int i;
 
-	#pragma omp parallel num_threads(4)
+	//#pragma omp parallel private(i, c0, c1, c2, c3) shared(message, mul) num_threads(2)
 	{
-		#pragma omp parallel for private(i, c0, c1, c2, c3) shared(message, mul)
-		for (i = 0; i != KEY_BLOCK; i += 4)
+	  //#pragma omp for schedule(dynamic)
+		for (i = 0; i < KEY_BLOCK; i += 4)
 		{
 			c0 = message[i + 0];
 			c1 = message[i + 1];
