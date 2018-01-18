@@ -21,6 +21,9 @@
     <ClInclude Include="Table.h">
       <Filter>Headerdateien</Filter>
     </ClInclude>
+    <ClInclude Include="timer.h">
+      <Filter>Headerdateien</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Headerdateien">

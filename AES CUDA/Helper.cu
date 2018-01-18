@@ -11,6 +11,7 @@
 #include <iostream>
 #include <fstream>
 #include <iostream>
+#include <tuple>
 
 #include "Helper.h"
 #include "AES.h"
@@ -26,42 +27,29 @@ using std::ifstream;
 /*********************************************************************/
 
 // Read-In Datafile in Hex-Format and Vector of ByteArrays
-const vector<unsigned char*> read_datafile(const string &file_path)
+std::tuple<unsigned char*, size_t> read_datafile(const string &file_path)
 {
-	vector<unsigned char*> data;
+	vector<unsigned char> data;
 	char act_char;
-	unsigned int counter = 0;
-	unsigned char *next_byte_array;
-	next_byte_array = new unsigned char[KEY_BLOCK];
 	ifstream infile;
 
 	infile.open(file_path);
 
 	while (!infile.eof())
 	{
-		if (counter < KEY_BLOCK)
-		{
-			infile.get(act_char);
-			next_byte_array[counter] = (unsigned char) act_char;
-			counter++;
-		}
-		else
-		{
-			data.push_back(next_byte_array);
-			counter = 0;
-
-			delete next_byte_array;
-			next_byte_array = nullptr;
-			next_byte_array = new unsigned char[KEY_BLOCK];
-		}
+		infile.get(act_char);
+		data.push_back((unsigned char) act_char);
 	}
 
 	infile.close();
-	return data;
+
+	unsigned char *result = &data[0];
+
+	return{ result, data.size() };
 }
 
 // Read-In Key Datafile in Hex-Format
-const unsigned char* read_key(const string &file_path)
+unsigned char* read_key(const string &file_path)
 {
 	unsigned char *data;
 	data = new unsigned char[KEY_BLOCK];
@@ -83,7 +71,7 @@ const unsigned char* read_key(const string &file_path)
 }
 
 // Generate IV-Vector for Counter Mode
-const unsigned char* random_byte_array(const unsigned int &length)
+unsigned char* random_byte_array(const unsigned int &length)
 {
 	unsigned char *byte_array;
 	byte_array = new unsigned char[length];
@@ -103,14 +91,6 @@ const unsigned char* random_byte_array(const unsigned int &length)
 
 // Cout whole unsigned char Array
 void print_byte_array(unsigned char *arr)
-{
-	for (size_t i = 0; i != sizeof(arr) / sizeof(arr[0]); ++i)
-	{
-		cout << std::hex << (int)arr[i] << "\t";
-	}
-	cout << endl << endl;
-}
-void print_byte_array(const unsigned char *arr)
 {
 	for (size_t i = 0; i != sizeof(arr) / sizeof(arr[0]); ++i)
 	{
