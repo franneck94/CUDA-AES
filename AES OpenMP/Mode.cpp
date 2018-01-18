@@ -7,6 +7,7 @@
 #include <iostream>
 #include <fstream>
 #include <random>
+#include <chrono>
 #include <omp.h>
 #include <inttypes.h>
 
@@ -24,7 +25,7 @@ using std::ifstream;
 /*                     COUNTER MODE FUNCTIONS                        */
 /*********************************************************************/
 
-// Increment Counter TODO!
+// Increment Counter
 ByteArray increment_counter(const ByteArray &start_counter,
 							const unsigned int &round)
 {
@@ -52,7 +53,7 @@ void generate_counters(vector<ByteArray> &ctrs, const ByteArray &IV)
 	ByteArray start_counter(KEY_BLOCK - IV.size(), 0x00);
 	ByteArray ctr_i(KEY_BLOCK - IV.size(), 0x00);
 	ByteArray res(KEY_BLOCK, 0x00);
-	size_t i = 0;
+	int i = 0;
 	
 	#pragma omp parallel private(i, res, ctr_i) shared(ctrs, start_counter, IV) num_threads(2)
 	{
@@ -82,9 +83,13 @@ const vector<ByteArray> counter_mode(const vector<ByteArray> &messages,
 	vector<ByteArray> encrypted_messages(messages.size(), vector<unsigned char>(KEY_BLOCK, 0x00));
 	vector<ByteArray> ctrs(messages.size(), vector<unsigned char>(KEY_BLOCK, 0x00));
 	generate_counters(ctrs, IV);
-	size_t i = 0;
+	int i = 0;
 
-	#pragma omp parallel private(i) shared(aes, encrypted_messages, ctrs, messages, key) num_threads(2)
+	// Starting Timers and Counter Mode for Encryption
+	float microseconds = 0.0f;
+	auto start_time = std::chrono::high_resolution_clock::now();
+
+	#pragma omp parallel private(i) shared(aes, encrypted_messages, ctrs, messages, key) num_threads(16)
 	{
 #pragma omp for 
 		for (i = 0; i < messages.size(); ++i)
@@ -93,6 +98,11 @@ const vector<ByteArray> counter_mode(const vector<ByteArray> &messages,
 		}
 	       
 	}
+
+	auto end_time = std::chrono::high_resolution_clock::now();
+	auto time = end_time - start_time;
+	microseconds = std::chrono::duration_cast<std::chrono::microseconds>(time).count();
+	cout << endl << "OpenMP Encrypted Duration: " << microseconds / 1000.0f << " (ms)." << endl;
 
 	return encrypted_messages;
 }
@@ -106,9 +116,13 @@ const vector<ByteArray> counter_mode_inverse(const vector<ByteArray> &encrypted_
 	vector<ByteArray> decrypted_messages(encrypted_messages.size(), vector<unsigned char>(KEY_BLOCK, 0x00));
 	vector<ByteArray> ctrs(encrypted_messages.size(), vector<unsigned char>(KEY_BLOCK, 0x00));
 	generate_counters(ctrs, IV);
-	size_t i = 0;
+	int i = 0;
 
-	#pragma omp parallel private(i) shared(aes, decrypted_messages, ctrs, encrypted_messages, key) num_threads(4)
+	// Starting Timers and Counter Mode for Encryption
+	float microseconds = 0.0f;
+	auto start_time = std::chrono::high_resolution_clock::now();
+
+	#pragma omp parallel private(i) shared(aes, decrypted_messages, ctrs, encrypted_messages, key) num_threads(16)
 	{
 #pragma omp for 
 		for (i = 0; i < encrypted_messages.size(); ++i)
@@ -116,6 +130,11 @@ const vector<ByteArray> counter_mode_inverse(const vector<ByteArray> &encrypted_
 		  decrypted_messages[i] = XOR(aes.encrypt(ctrs[i]), encrypted_messages[i]);
 		}
 	}
+
+	auto end_time = std::chrono::high_resolution_clock::now();
+	auto time = end_time - start_time;
+	microseconds = std::chrono::duration_cast<std::chrono::microseconds>(time).count();
+	cout << endl << "OpenMP Decrypted Duration: " << microseconds / 1000.0f << " (ms)." << endl;
 
 	return decrypted_messages;
 }
