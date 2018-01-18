@@ -1,9 +1,9 @@
 import matplotlib.pyplot as plt
 
-test_sizes = [7, 11, 23, 40, 58]
-serial = [355, 534, 1088, 1830, 2653]
-openmp_best = [46, 68, 132, 222, 322]
-cuda_best = [0.834400, 1.262720, 2.447360, 4.311680, 6.031840]
+test_sizes = [7, 11, 23, 40, 58, 78]
+serial = [231, 354, 704, 1205, 1766, 2349]
+openmp_best = [55, 66, 131, 221, 322, 414]
+cuda_best = [0.472064, 0.62976, 1.19296, 2.01933, 3.3495, 3.86048]
 
 plt.plot(test_sizes, serial, color="black")
 plt.plot(test_sizes, openmp_best, color="blue")
@@ -17,22 +17,22 @@ plt.ylabel('Duration (ms)')
 plt.savefig("fig1.png")
 plt.show()
 
-test_sizes = [7, 11, 23, 40, 58]
-two = [117, 191, 375, 639, 959]
-four = [61, 132, 209, 342, 498]
-six = [67, 83, 169, 276, 465]
-eight = [55, 84, 160, 257, 360]
-ten = [46, 68, 132, 222, 322]
-sixteen = [55, 80, 134, 214, 324]
+test_sizes = [7, 11, 23, 40, 58, 78]
+two = [117, 191, 375, 639, 959, 1223]
+four = [61, 132, 209, 342, 498, 659]
+six = [67, 81, 169, 276, 465, 525]
+eight = [61, 75, 163, 257, 370, 500]
+ten = [55, 66, 131, 221, 322, 414]
+twelfe = [52, 69, 117, 196, 290, 386]
 
 plt.plot(test_sizes, two, color="black")
 plt.plot(test_sizes, four, color="blue")
 plt.plot(test_sizes, six, color="yellow")
 plt.plot(test_sizes, eight, color="red")
 plt.plot(test_sizes, ten, color="orange")
-plt.plot(test_sizes, sixteen, color="pink")
+plt.plot(test_sizes, twelfe, color="pink")
 
-plt.legend(['2 Threads', '4 Threads', '6 Threads', '8 Threads', '10 Threads', '16 Threads'])
+plt.legend(['2 Threads', '4 Threads', '6 Threads', '8 Threads', '10 Threads', '12 Threads'])
 plt.title('OpenMP Comparison')
 plt.xlabel('Test Size (MB)')
 plt.ylabel('Duration (ms)')
@@ -40,10 +40,10 @@ plt.ylabel('Duration (ms)')
 plt.savefig("fig2.png")
 plt.show()
 
-test_sizes = [7, 11, 23, 40, 58]
-two = [0.937952, 1.398272, 2.741248, 4.791712, 6.740384]
-four = [0.834400, 1.262720, 2.447360, 4.311680, 6.031840]
-eight = [0.891680, 1.378176, 2.713472, 4.760992, 6.849312]
+test_sizes = [7, 11, 23, 40, 58, 78]
+two = [0.67584, 1.16941, 2.29274, 3.47546, 5.02477, 6.66522]
+four = [0.512, 0.636928, 1.19706, 2.0439, 2.94298, 3.9465]
+eight = [0.472064, 0.62976, 1.19296, 2.01933, 3.3495, 3.86048]
 
 plt.plot(test_sizes, two, color="black")
 plt.plot(test_sizes, four, color="blue")

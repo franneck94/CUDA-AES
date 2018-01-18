@@ -23,6 +23,12 @@ using std::endl;
 using std::vector;
 using std::string;
 
+#define THREADS_PER_BLOCK 1024
+
+/*********************************************************************/
+/*                       GPU HELPER FUNCTIONS                        */
+/*********************************************************************/
+
 #define gpuErrchk(ans) { gpuAssert((ans), __FILE__, __LINE__); }
 
 inline void gpuAssert(cudaError_t code, char *file, int line, bool abort = true)
@@ -46,7 +52,7 @@ void counter_launch_kernel(unsigned char *messages, unsigned char *results, unsi
 
 	// Define launch config
 	int chunks = filesize / 16;
-	int ThreadsPerBlock = 1024;
+	int ThreadsPerBlock = THREADS_PER_BLOCK;
 	int Blocks = chunks / ThreadsPerBlock;
 
 	// Pushes results to device memory

@@ -11,9 +11,6 @@
 
 #define AES_BITS 128
 
-#define BLOCKS_PER_LAUNCH 5
-#define THREADS_PER_BLOCK 512
-
 #if AES_BITS == 128  
 	#define NUM_ROUNDS 10
 	#define SUB_KEYS (NUM_ROUNDS + 1)

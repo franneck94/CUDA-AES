@@ -7,6 +7,7 @@
 #include <iostream>
 #include <fstream>
 #include <random>
+#include <chrono>
 #include <bitset>
 
 #include "Helper.hpp"
@@ -67,10 +68,19 @@ const vector<ByteArray> counter_mode(const vector<ByteArray> &messages,
 	vector<ByteArray> ctrs(messages.size(), vector<unsigned char>(KEY_BLOCK, 0x00));
 	generate_counters(ctrs, IV);
 
+	// Starting Timers and Counter Mode for Encryption
+	float microseconds = 0.0f;
+	auto start_time = std::chrono::high_resolution_clock::now();
+
 	for (size_t i = 0; i != messages.size(); ++i)
 	{
 		encrypted_messages[i] = XOR(aes.encrypt(ctrs[i]), messages[i]);
 	}
+
+	auto end_time = std::chrono::high_resolution_clock::now();
+	auto time = end_time - start_time;
+	microseconds = std::chrono::duration_cast<std::chrono::microseconds>(time).count();
+	cout << endl << "OpenMP Encrypted Duration: " << microseconds / 1000.0f << " (ms).";
 
 	return encrypted_messages;
 }
@@ -85,10 +95,19 @@ const vector<ByteArray> counter_mode_inverse(const vector<ByteArray> &encrypted_
 	vector<ByteArray> ctrs(encrypted_messages.size(), vector<unsigned char>(KEY_BLOCK, 0x00));
 	generate_counters(ctrs, IV);
 
+	// Starting Timers and Counter Mode for Encryption
+	float microseconds = 0.0f;
+	auto start_time = std::chrono::high_resolution_clock::now();
+
 	for (size_t i = 0; i != encrypted_messages.size(); ++i)
 	{
 		decrypted_messages[i] = XOR(aes.encrypt(ctrs[i]), encrypted_messages[i]);
 	}
+
+	auto end_time = std::chrono::high_resolution_clock::now();
+	auto time = end_time - start_time;
+	microseconds = std::chrono::duration_cast<std::chrono::microseconds>(time).count();
+	cout << endl << "OpenMP Decrypted Duration: " << microseconds / 1000.0f << " (ms).";
 
 	return decrypted_messages;
 }

@@ -21,6 +21,8 @@ using std::vector;
 using std::string;
 using std::ifstream;
 
+#define NUM_THREADS 2
+
 /*********************************************************************/
 /*                     COUNTER MODE FUNCTIONS                        */
 /*********************************************************************/
@@ -85,7 +87,7 @@ const vector<ByteArray> counter_mode(const vector<ByteArray> &messages,
 	float microseconds = 0.0f;
 	auto start_time = std::chrono::high_resolution_clock::now();
 
-	#pragma omp parallel private(i) shared(aes, encrypted_messages, ctrs, messages, key) num_threads(16)
+	#pragma omp parallel private(i) shared(aes, encrypted_messages, ctrs, messages, key) num_threads(NUM_THREADS)
 	{
 		#pragma omp for 
 		for (i = 0; i < messages.size(); ++i)
@@ -118,7 +120,7 @@ const vector<ByteArray> counter_mode_inverse(const vector<ByteArray> &encrypted_
 	float microseconds = 0.0f;
 	auto start_time = std::chrono::high_resolution_clock::now();
 
-	#pragma omp parallel private(i) shared(aes, decrypted_messages, ctrs, encrypted_messages, key) num_threads(16)
+	#pragma omp parallel private(i) shared(aes, decrypted_messages, ctrs, encrypted_messages, key) num_threads(NUM_THREADS)
 	{
 		#pragma omp for 
 		for (i = 0; i < encrypted_messages.size(); ++i)
