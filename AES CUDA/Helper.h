@@ -25,7 +25,7 @@ using std::ifstream;
 /*********************************************************************/
 
 // Read-In Datafile in Hex-Format and Vector of ByteArrays
-std::tuple<unsigned char**, size_t> read_datafile(const string &file_path);
+vector<unsigned char> read_datafile(const string &file_path);
 
 // Read-In Key Datafile in Hex-Format
 unsigned char* read_key(const string &file_path);
@@ -34,10 +34,10 @@ unsigned char* read_key(const string &file_path);
 unsigned char* random_byte_array(const unsigned int &length);
 
 // Cout whole unsigned char Array
-void print_byte_array(unsigned char *arr);
+void print_byte_array(unsigned char *arr, const unsigned int &size);
 
 // Checks if two unsigned chars has same values
-bool check_byte_arrays(unsigned char **arr1, unsigned char **arr2, const unsigned int &size);
+bool check_byte_arrays(unsigned char *arr1, unsigned char *arr2, const unsigned int &size);
 
 // Cout hex byte
 void print_byte(const unsigned char &byte);

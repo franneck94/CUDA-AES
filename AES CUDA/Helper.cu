@@ -27,40 +27,23 @@ using std::ifstream;
 /*********************************************************************/
 
 // Read-In Datafile in Hex-Format and Vector of ByteArrays
-std::tuple<unsigned char**, size_t> read_datafile(const string &file_path)
+vector<unsigned char> read_datafile(const string &file_path)
 {
-	vector<unsigned char*> data;
+	vector<unsigned char> data;
 	char act_char;
 	unsigned int counter = 0;
-	unsigned char* next_byte_array;
-	next_byte_array = new unsigned char[KEY_BLOCK];
 	ifstream infile;
 
 	infile.open(file_path);
 
 	while (!infile.eof())
 	{
-		if (counter < KEY_BLOCK)
-		{
-			infile.get(act_char);
-			next_byte_array[counter] = (unsigned char) act_char;
-			counter++;
-		}
-		else
-		{
-			data.push_back(next_byte_array);
-			delete next_byte_array;
-			next_byte_array = nullptr;
-			next_byte_array = new unsigned char[KEY_BLOCK];
-			counter = 0;
-		}
+		infile.get(act_char);
+		data.push_back(act_char);
 	}
 
 	infile.close();
-
-	unsigned char **result = &data[0];
-
-	return{ result, data.size() };
+	return data;
 }
 
 // Read-In Key Datafile in Hex-Format
@@ -105,9 +88,9 @@ unsigned char* random_byte_array(const unsigned int &length)
 }
 
 // Cout whole unsigned char Array
-void print_byte_array(unsigned char *arr)
+void print_byte_array(unsigned char *arr, const unsigned int &size)
 {
-	for (size_t i = 0; i != sizeof(arr) / sizeof(arr[0]); ++i)
+	for (size_t i = 0; i != size; ++i)
 	{
 		cout << std::hex << (int)arr[i] << "\t";
 	}
@@ -116,12 +99,15 @@ void print_byte_array(unsigned char *arr)
 
 
 // Checks if two ByteArrays has same values
-bool check_byte_arrays(unsigned char **arr1, unsigned char **arr2, const unsigned int &size)
+bool check_byte_arrays(unsigned char *arr1, unsigned char *arr2, const unsigned int &size)
 {
 	for (size_t i = 0; i != size; ++i)
 	{
 		if (arr1[i] != arr2[i])
+		{ 
+			cout << endl << "Error at i = " << i << " 1: " << arr1[i] << " , 2: " << arr2[i] << endl;
 			return false;
+		}
 	}
 
 	return true;
