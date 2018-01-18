@@ -21,7 +21,7 @@ using std::cout;
 using std::endl;
 using std::vector;
 
-__device__ static const unsigned char iv[KEY_BLOCK] = 
+__device__ unsigned char iv[KEY_BLOCK] = 
 { 
 		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
 		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 
@@ -31,39 +31,38 @@ __device__ static const unsigned char iv[KEY_BLOCK] =
 /*                           MAIN KERNEL                             */
 /*********************************************************************/
 
-__global__ void cuda_aes_encrypt_ctr(unsigned char *in, unsigned char *out, int n, int counter)
+__global__ void cuda_aes_encrypt_ctr(unsigned char *out)
 {
-	//Map the thread id and block id to the AES block
-	int i = ((blockIdx.x * THREADS_PER_BLOCK) + threadIdx.x) * KEY_BLOCK;
+	int id = (blockDim.x*blockIdx.x + threadIdx.x) * 16;
 
-	if (i < n)
+	unsigned char internBuffer[16];
+	unsigned char internIV[16];
+
+	for (int i = 0; i < 16; i++) 
 	{
-		//Call the encrypt function on the current 16-unsigned char block
-		aes_encrypt_ctr(in, out, d_keySchedule, counter);
+		internBuffer[i] = out[id + i];
+		internIV[i] = iv[i];
 	}
-}
 
-__global__ void cuda_aes_encrypt(unsigned char *in, unsigned char *out, int n)
-{
-	//Map the thread id and block id to the AES block
-	int i = ((blockIdx.x * THREADS_PER_BLOCK) + threadIdx.x) * KEY_BLOCK;
+	__syncthreads();
 
-	if (i < n)
+	//Encrypt the IV
+	aes_encrypt(internIV, d_keySchedule);
+
+	__syncthreads();
+
+	//XOR the encrypted incremented IV with the message block
+	for (int i = 0; i < KEY_BLOCK; ++i)
 	{
-		//Call the encrypt function on the current 16-unsigned char block
-		aes_encrypt(out, d_keySchedule);
+		unsigned char res = internIV[i] ^ internBuffer[i];
+		res = internBuffer[i];
 	}
-}
 
-__global__ void cuda_aes_decrypt(unsigned char *in, unsigned char *out, int n)
-{
-	//Map the thread id and block id to the AES block
-	int i = ((blockIdx.x * THREADS_PER_BLOCK) + threadIdx.x) * KEY_BLOCK;
+	__syncthreads();
 
-	if (i < n)
+	for (int i = 0; i < 16; i++) 
 	{
-		//Call the encrypt function on the current 16-unsigned char block
-		aes_decrypt(out, d_keySchedule);
+		out[id + i] = internBuffer[i];
 	}
 }
 
@@ -71,37 +70,7 @@ __global__ void cuda_aes_decrypt(unsigned char *in, unsigned char *out, int n)
 /*                         MAIN DEVICE KERNEL                        */
 /*********************************************************************/
 
-__device__ void aes_encrypt_ctr(unsigned char *in, unsigned char *out, 
-							unsigned char *key, int counter)
-{
-	//Calculate the IV offset from the block and thread indices
-	int offset = (blockIdx.x * THREADS_PER_BLOCK) + threadIdx.x + counter;
-	//Add the offset to the IV unsigned char by unsigned char
-	int idx, c = 0;
-	unsigned char iv_new[KEY_BLOCK];
-
-	for (idx = KEY_BLOCK - 1; idx >= 0; idx--)
-	{
-		short shift = (KEY_BLOCK - (idx + 1)) * 8;
-		//First operand is the current unsigned char of the IV
-		unsigned char op1 = iv[idx];
-		//Second operand is the current unsigned char of the offset
-		unsigned char op2 = ((offset &(0xff << shift)) >> shift);
-		iv_new[idx] = op1 + op2 + c;
-		c = (iv_new[idx] > op1 && iv_new[idx] > op2) ? 0 : 1;
-	}
-
-	//Encrypt the IV
-	aes_encrypt(iv_new, key);
-
-	//XOR the encrypted incremented IV with the message block
-	for (idx = 0; idx < KEY_BLOCK; ++idx)
-	{
-		out[idx] = iv_new[idx] ^ in[idx];
-	}
-}
-
-__device__ void aes_encrypt(unsigned char *out, unsigned char *key)
+__device__ void aes_encrypt(unsigned char out[], unsigned char *key)
 {
 	// Do all AES Rounds
 	if (AES_BITS == 128)
@@ -120,31 +89,12 @@ __device__ void aes_encrypt(unsigned char *out, unsigned char *key)
 	}
 }
 
-__device__ void aes_decrypt(unsigned char *out, unsigned char *key)
-{
-	// Do all AES Rounds
-	if (AES_BITS == 128)
-	{
-		key_addition(out, key, 10 *KEY_BLOCK); shift_rows_inv(out);  byte_sub_inv(out);
-		key_addition(out, key, 9 * KEY_BLOCK); mix_columns_inv(out); shift_rows_inv(out); byte_sub_inv(out);
-		key_addition(out, key, 8 * KEY_BLOCK); mix_columns_inv(out); shift_rows_inv(out); byte_sub_inv(out);
-		key_addition(out, key, 7 * KEY_BLOCK); mix_columns_inv(out); shift_rows_inv(out); byte_sub_inv(out);
-		key_addition(out, key, 6 * KEY_BLOCK); mix_columns_inv(out); shift_rows_inv(out); byte_sub_inv(out);
-		key_addition(out, key, 5 * KEY_BLOCK); mix_columns_inv(out); shift_rows_inv(out); byte_sub_inv(out);
-		key_addition(out, key, 4 * KEY_BLOCK); mix_columns_inv(out); shift_rows_inv(out); byte_sub_inv(out);
-		key_addition(out, key, 3 * KEY_BLOCK); mix_columns_inv(out); shift_rows_inv(out); byte_sub_inv(out);
-		key_addition(out, key, 2 * KEY_BLOCK); mix_columns_inv(out); shift_rows_inv(out); byte_sub_inv(out);
-		key_addition(out, key, 1 * KEY_BLOCK); mix_columns_inv(out); shift_rows_inv(out); byte_sub_inv(out);
-		key_addition(out, key, 0);
-	}
-}
-
 /*********************************************************************/
 /*                      SUB LAYER DEVICE KERNEL                      */
 /*********************************************************************/
 
 // unsigned char substitution (S-Boxes) can be parallel
-__device__ void byte_sub(unsigned char *message)
+__device__ void byte_sub(unsigned char message[])
 {
 	#pragma unroll
 	for (int i = 0; i != KEY_BLOCK; ++i)
@@ -154,7 +104,7 @@ __device__ void byte_sub(unsigned char *message)
 }
 
 // Inverse unsigned char substitution (S-Boxes) can be parallel
-__device__ void byte_sub_inv(unsigned char *message)
+__device__ void byte_sub_inv(unsigned char message[])
 {
 	#pragma unroll
 	for (int i = 0; i != KEY_BLOCK; ++i)
@@ -165,7 +115,7 @@ __device__ void byte_sub_inv(unsigned char *message)
 
 // Shift rows - can be parallel
 // B0, B4, B8, B12 stays the same
-__device__ void shift_rows(unsigned char *message)
+__device__ void shift_rows(unsigned char message[])
 {
 	unsigned char j = 0, k = 0;
 
@@ -191,7 +141,7 @@ __device__ void shift_rows(unsigned char *message)
 
 // Inverse shift rows - can be parallel
 // C0, C4, C8, C12 stays the same
-__device__ void shift_rows_inv(unsigned char *message)
+__device__ void shift_rows_inv(unsigned char message[])
 {
 	unsigned char j = 0, k = 0;
 
@@ -216,11 +166,11 @@ __device__ void shift_rows_inv(unsigned char *message)
 }
 
 // Mix column - can be parallel
-__device__ void mix_columns(unsigned char *message)
+__device__ void mix_columns(unsigned char message[])
 {
 	unsigned char b0, b1, b2, b3;
 
-	// #pragma unroll
+	#pragma unroll
 	for (int i = 0; i != KEY_BLOCK; i += 4)
 	{
 		b0 = message[i + 0];
@@ -236,11 +186,11 @@ __device__ void mix_columns(unsigned char *message)
 }
 
 // Inverse mix column
-__device__ void mix_columns_inv(unsigned char *message)
+__device__ void mix_columns_inv(unsigned char message[])
 {
 	unsigned char c0, c1, c2, c3;
 
-	// #pragma unroll
+	#pragma unroll
 	for (int i = 0; i != KEY_BLOCK; i += 4)
 	{
 		c0 = message[i + 0];
@@ -256,7 +206,7 @@ __device__ void mix_columns_inv(unsigned char *message)
 }
 
 // Key Addition Kernel
-__device__ void key_addition(unsigned char *message, unsigned char *key, const unsigned int &start)
+__device__ void key_addition(unsigned char message[], unsigned char *key, const unsigned int &start)
 {
 	#pragma unroll
 	for (int i = start; i != start + KEY_BLOCK; ++i)

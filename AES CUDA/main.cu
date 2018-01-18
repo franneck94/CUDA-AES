@@ -7,6 +7,7 @@
 #include <cuda.h>
 
 #include <iostream>
+#include <fstream>
 #include <stdlib.h>
 #include <vector>
 #include <chrono>
@@ -33,55 +34,56 @@ inline void gpuAssert(cudaError_t code, char *file, int line, bool abort = true)
 	}
 }
 
+int file_size(const std::string &add) 
+{
+	ifstream mySource;
+	mySource.open(add, std::ios_base::binary);
+	mySource.seekg(0, std::ios_base::end);
+	int size = mySource.tellg();
+	mySource.close();
+	return size;
+}
+
 /*********************************************************************/
 /*                       COUNTER MODE FUNCTIONS                      */
 /*********************************************************************/
 
-void counter_launch_kernel(unsigned char *messages, unsigned char *results, 
-							unsigned char *key, unsigned char *IV, const unsigned int &message_size)
+void counter_launch_kernel(unsigned char **messages, unsigned char **results, 
+							unsigned char *key, const unsigned int &message_size, 
+							const unsigned int &filesize)
 {
-	int n = 0;
-	int counter = 0;
 	float milliseconds = 0.0f;
 
+	// Define launch config
+	int ThreadsPerBlock = 1024;
+	int Blocks = (filesize / 16) / ThreadsPerBlock;
+
+	// Push subkeys to device memory
 	unsigned char *keys = key_schedule(key);
-
 	unsigned char *d_keys;
-	unsigned char *d_messages;
-	unsigned char *d_results;
-
 	const int size_keys = NUM_ROUNDS * KEY_BLOCK * sizeof(unsigned char);
-	const int size_messages = message_size * KEY_BLOCK * sizeof(unsigned char);
-	const int size_results = message_size * KEY_BLOCK * sizeof(unsigned char);
-
 	d_keys = new unsigned char[size_keys];
-	d_messages = new unsigned char[size_messages];
-	d_results = new unsigned char[size_results];
-
 	gpuErrchk(cudaMalloc((void **)&d_keys, size_keys));
-	gpuErrchk(cudaMalloc((void **)&d_messages, size_messages));
-	gpuErrchk(cudaMalloc((void **)&d_results, size_results));
-
-	gpuErrchk(cudaMemcpy(d_results, results, size_results, cudaMemcpyHostToDevice));
-	gpuErrchk(cudaMemcpy(d_messages, messages, size_messages, cudaMemcpyHostToDevice));
-
 	gpuErrchk(cudaMemcpy(d_keys, keys, size_keys, cudaMemcpyHostToDevice));
 	gpuErrchk(cudaMemcpyToSymbol(d_keySchedule, &d_keys, sizeof(size_keys)));
 
+	// Pushes results to device memory
+	unsigned char *d_results;
+	const int size_results = KEY_BLOCK * sizeof(unsigned char);
+	d_results = new unsigned char[size_results];
+	gpuErrchk(cudaMalloc((void **)&d_results, size_results));
+	gpuErrchk(cudaMemcpy(d_results, messages, size_results, cudaMemcpyHostToDevice));
+
 	GpuTimer timer;
 	timer.Start();
-	cuda_aes_encrypt_ctr << <BLOCKS_PER_LAUNCH, THREADS_PER_BLOCK >> > (d_messages, d_results, n, counter);
+	cuda_aes_encrypt_ctr << <Blocks, ThreadsPerBlock >> > (d_results);
 	cudaThreadSynchronize();
 	cudaDeviceSynchronize();
 	timer.Stop();
 	milliseconds = timer.ElapsedMilliSeconds();
 	cout << "Done Counter Mode in: " << milliseconds << " (ms)." << endl;
 
-	cudaMemcpy(messages, d_messages, size_messages, cudaMemcpyDeviceToHost);
 	cudaMemcpy(results, d_results, size_results, cudaMemcpyDeviceToHost);
-
-	cudaFree(keys);
-	cudaFree(d_messages);
 	cudaFree(d_results);
 }
 
@@ -91,29 +93,26 @@ void counter_launch_kernel(unsigned char *messages, unsigned char *results,
 
 int main()
 {
-	// Define Variables
-	unsigned int iv_length = 12;
-
 	string file_path_key = "C:/Users/Jan/Dropbox/Master AI/Parallel Computing/Project/key.txt";
-	string file_path_messages = "C:/Users/Jan/Dropbox/Master AI/Parallel Computing/Project/test.txt";;
+	string file_path_messages = "C:/Users/Jan/Dropbox/Master AI/Parallel Computing/Project/test.txt";
+	int filesize = file_size(file_path_messages);
 
 	// Load data from files
 	unsigned char *key = read_key(file_path_key);
-	unsigned char *IV = random_byte_array(iv_length);
 
 	cout << endl << "Starting AES CUDA - COUNTER MODE, with Key: " << endl;
 	print_byte_array(key);
 
-	std::tuple<unsigned char*, size_t> t = read_datafile(file_path_messages);
-	unsigned char *messages = std::get<0>(t);
+	std::tuple<unsigned char**, size_t> t = read_datafile(file_path_messages);
+	unsigned char **messages = std::get<0>(t);
 	size_t message_size = std::get<1>(t) * KEY_BLOCK;
 
 	// Malloc Memory for Enc/Decrypted Solutions
-	unsigned char *decrypted_solution;
-	unsigned char *encrypted_solution;
+	unsigned char **decrypted_solution;
+	unsigned char **encrypted_solution;
 
-	decrypted_solution = new unsigned char[message_size];
-	encrypted_solution = new unsigned char[message_size];
+	decrypted_solution = new unsigned char*[message_size];
+	encrypted_solution = new unsigned char*[message_size];
 
 	for (int i = 0; i != message_size; ++i)
 	{
@@ -123,13 +122,13 @@ int main()
 
 	// Starting Encryption
 	cout << endl << "Starting AES CUDA - COUNTER MODE KERNEL " << endl;
-	counter_launch_kernel(messages, encrypted_solution, key, IV, message_size);
+	counter_launch_kernel(messages, encrypted_solution, key, message_size, filesize);
 
 	// Starting Decryption
 	cout << endl << "Starting AES CUDA - INVERSE COUNTER MODE KERNEL " << endl;
-	counter_launch_kernel(encrypted_solution, decrypted_solution, key, IV, message_size);
+	counter_launch_kernel(encrypted_solution, decrypted_solution, key, message_size, filesize);
 
-	cout << endl << "Legit solution: " << check_byte_arrays(messages, decrypted_solution) << endl;
+	cout << endl << "Legit solution: " << check_byte_arrays(messages, decrypted_solution, message_size * KEY_BLOCK) << endl;
 
 	getchar();
 }

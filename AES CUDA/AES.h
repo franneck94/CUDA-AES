@@ -10,6 +10,7 @@
 #include "Table.h"
 
 #define AES_BITS 128
+
 #define BLOCKS_PER_LAUNCH 5
 #define THREADS_PER_BLOCK 512
 
@@ -38,25 +39,21 @@ using std::vector;
 
 __device__ unsigned char *d_keySchedule;
 
-__device__ void byte_sub(unsigned char *message);
-__device__ void byte_sub_inv(unsigned char *message);
-__device__ void shift_rows(unsigned char *message);
-__device__ void shift_rows_inv(unsigned char *message);
-__device__ void mix_columns(unsigned char *message);
-__device__ void mix_columns_inv(unsigned char *message);
-__device__ void key_addition(unsigned char *message, unsigned char *key, const unsigned int &start);
+__device__ void byte_sub(unsigned char out[]);
+__device__ void byte_sub_inv(unsigned char out[]);
+__device__ void shift_rows(unsigned char out[]);
+__device__ void shift_rows_inv(unsigned char out[]);
+__device__ void mix_columns(unsigned char out[]);
+__device__ void mix_columns_inv(unsigned char out[]);
+__device__ void key_addition(unsigned char out[], unsigned char *key, const unsigned int &start);
 
-__device__ void aes_encrypt_ctr(unsigned char *in, unsigned char *out, unsigned char *key, int counter);
-__device__ void aes_encrypt(unsigned char *out, unsigned char *key);
-__device__ void aes_decrypt(unsigned char *out, unsigned char *key);
+__device__ void aes_encrypt(unsigned char out[], unsigned char *key);
 
 /*********************************************************************/
 /*                          KERNEL DECLARATIONS                      */
 /*********************************************************************/
 
-__global__ void cuda_aes_decrypt(unsigned char *in, unsigned char *out, int n);
-__global__ void cuda_aes_encrypt(unsigned char *in, unsigned char *out, int n);
-__global__ void cuda_aes_encrypt_ctr(unsigned char *in, unsigned char *out, int n, int counter);
+__global__ void cuda_aes_encrypt_ctr(unsigned char *out);
 
 /*********************************************************************/
 /*                        HOST KEY FUNCTIONS                         */

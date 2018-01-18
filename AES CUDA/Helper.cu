@@ -27,23 +27,38 @@ using std::ifstream;
 /*********************************************************************/
 
 // Read-In Datafile in Hex-Format and Vector of ByteArrays
-std::tuple<unsigned char*, size_t> read_datafile(const string &file_path)
+std::tuple<unsigned char**, size_t> read_datafile(const string &file_path)
 {
-	vector<unsigned char> data;
+	vector<unsigned char*> data;
 	char act_char;
+	unsigned int counter = 0;
+	unsigned char* next_byte_array;
+	next_byte_array = new unsigned char[KEY_BLOCK];
 	ifstream infile;
 
 	infile.open(file_path);
 
 	while (!infile.eof())
 	{
-		infile.get(act_char);
-		data.push_back((unsigned char) act_char);
+		if (counter < KEY_BLOCK)
+		{
+			infile.get(act_char);
+			next_byte_array[counter] = (unsigned char) act_char;
+			counter++;
+		}
+		else
+		{
+			data.push_back(next_byte_array);
+			delete next_byte_array;
+			next_byte_array = nullptr;
+			next_byte_array = new unsigned char[KEY_BLOCK];
+			counter = 0;
+		}
 	}
 
 	infile.close();
 
-	unsigned char *result = &data[0];
+	unsigned char **result = &data[0];
 
 	return{ result, data.size() };
 }
@@ -99,35 +114,11 @@ void print_byte_array(unsigned char *arr)
 	cout << endl << endl;
 }
 
-// Checks if two Vector of unsigned chars has same values
-bool check_vector_of_byte_arrays(const vector<unsigned char*> &arr1, const vector<unsigned char*> &arr2)
-{
-	bool check = true;
-
-	if (arr1.size() != arr2.size())
-		return false;
-
-	for (size_t i = 0; i != arr1.size(); ++i)
-	{
-		if (arr1[i] != arr2[i])
-			check = check_byte_arrays(arr1[i], arr2[i]);
-		if (!check)
-		{
-			cout << endl << "Error at index i = " << i << endl;
-			return false;
-		}
-	}
-
-	return true;
-}
 
 // Checks if two ByteArrays has same values
-bool check_byte_arrays(const unsigned char *arr1, const unsigned char *arr2)
+bool check_byte_arrays(unsigned char **arr1, unsigned char **arr2, const unsigned int &size)
 {
-	if (sizeof(arr1) != sizeof(arr2))
-		return false;
-
-	for (size_t i = 0; i != sizeof(arr1) / sizeof(arr1[0]); ++i)
+	for (size_t i = 0; i != size; ++i)
 	{
 		if (arr1[i] != arr2[i])
 			return false;

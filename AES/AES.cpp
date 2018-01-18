@@ -3,6 +3,7 @@
 /*********************************************************************/
 
 #include <iostream>
+#include <fstream>
 #include <stdlib.h>
 #include <vector>
 
@@ -105,6 +106,17 @@ void AES::key_schedule()
 				cout << "TODO! 192-bit and 256-bit not implemented yet." << endl;
 		}
 	}
+
+	std::ofstream of;
+	of.open("keysTest.txt");
+	for (int i = 0; i != SUB_KEYS; ++i)
+	{
+		for (int j = 0; j != KEY_BLOCK; ++j)
+		{
+			of << std::dec << (int)m_subkeys[i][j] << " ";
+		}
+	}
+	of.close();
 }
 
 // Computing subkeys for round 1 up to 10
