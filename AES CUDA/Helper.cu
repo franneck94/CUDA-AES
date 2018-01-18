@@ -26,24 +26,37 @@ using std::ifstream;
 /*                          HELPER FUNCTIONS                         */
 /*********************************************************************/
 
-// Read-In Datafile in Hex-Format and Vector of ByteArrays
-vector<unsigned char> read_datafile(const string &file_path)
+// Read in Filesize
+long int file_size(const char file_path[])
 {
-	vector<unsigned char> data;
-	char act_char;
-	unsigned int counter = 0;
-	ifstream infile;
+	FILE * fp_input;
+	fp_input = fopen(file_path, "rb");
 
-	infile.open(file_path);
+	fseek(fp_input, 0L, SEEK_END);
+	long int FILESIZE = ftell(fp_input);
+	fclose(fp_input);
 
-	while (!infile.eof())
+	return FILESIZE;
+}
+
+// Read-In Datafile in Hex-Format
+void read_datafile(const char file_path[], unsigned char *plaintexts)
+{
+	FILE * fp_input;
+	fp_input = fopen(file_path, "rb");
+
+	fseek(fp_input, 0L, SEEK_END);
+	long int FILESIZE = ftell(fp_input);
+
+	fseek(fp_input, 0L, SEEK_SET);
+	unsigned long input_cnt = 0;
+	while (feof(fp_input) == 0)
 	{
-		infile.get(act_char);
-		data.push_back(act_char);
+		plaintexts[input_cnt] = fgetc(fp_input);
+		input_cnt++;
 	}
 
-	infile.close();
-	return data;
+	fclose(fp_input);
 }
 
 // Read-In Key Datafile in Hex-Format
@@ -111,25 +124,4 @@ bool check_byte_arrays(unsigned char *arr1, unsigned char *arr2, const unsigned 
 	}
 
 	return true;
-}
-
-// Cout hex byte
-void print_byte(const unsigned char &byte)
-{
-	cout << endl << "Byte: " << std::hex << (int)byte;
-}
-
-// XOR for unsigned char*
-unsigned char* XOR(const unsigned char *arr1, const unsigned char *arr2)
-{
-	unsigned char* res;
-	const unsigned int arr_size = sizeof(arr1) / sizeof(unsigned char);
-	res = new unsigned char[arr_size];
-
-	for (size_t i = 0; i != arr_size; ++i)
-	{
-		res[i] = arr1[i] ^ arr2[i];
-	}
-
-	return res;
 }

@@ -24,8 +24,11 @@ using std::ifstream;
 /*                          HELPER FUNCTIONS                         */
 /*********************************************************************/
 
-// Read-In Datafile in Hex-Format and Vector of ByteArrays
-vector<unsigned char> read_datafile(const string &file_path);
+// Read in Filesize
+long int file_size(const char file_path[]);
+
+// Read-In Datafile in Hex-Format
+void read_datafile(const char file_path[], unsigned char *plaintexts);
 
 // Read-In Key Datafile in Hex-Format
 unsigned char* read_key(const string &file_path);

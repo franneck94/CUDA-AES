@@ -21,7 +21,7 @@ using std::cout;
 using std::endl;
 using std::vector;
 
-__device__ unsigned char iv[KEY_BLOCK] = 
+__device__ unsigned char IV[KEY_BLOCK] = 
 { 
 		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
 		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 
@@ -31,89 +31,62 @@ __device__ unsigned char iv[KEY_BLOCK] =
 /*                           MAIN KERNEL                             */
 /*********************************************************************/
 
-__global__ void cuda_aes_encrypt_ctr(unsigned char *out, unsigned char *keys, unsigned char *sbox, unsigned char *gf_mul[], int chunks)
+__global__ void aes_encryption(unsigned char* SBOX, unsigned char* BufferData, unsigned char* SubKeys)
 {
-	int id = (blockDim.x*blockIdx.x + threadIdx.x) * 16;
+	register int id = (blockDim.x*blockIdx.x + threadIdx.x) * 16;
 
-	if (id < chunks)
+	__shared__ unsigned char sharedSbox[256];
+	__shared__ unsigned char sharedSubKeys[176];
+
+	if (threadIdx.x == 0)
 	{
-		unsigned char internBuffer[16];
-		unsigned char internIV[16];
-
-		__shared__ unsigned char sharedSbox[256];
-		__shared__ unsigned char sharedGfMul[256][6];
-		__shared__ unsigned char sharedSubKeys[176];
-
-		if (threadIdx.x == 0)
+		for (int i = 0; i<256; i++)
 		{
-			for (int i = 0; i < 256; ++i)
+			sharedSbox[i] = SBOX[i];
+
+			if (i < 176)
 			{
-				sharedSbox[i] = sbox[i];
-
-				for (int j = 0; j < 6; ++j)
-				{
-					sharedGfMul[i][j] = gf_mul[i][j];
-				}
-
-				if (i < 176)
-				{
-					sharedSubKeys[i] = keys[i];
-				}
+				sharedSubKeys[i] = SubKeys[i];
 			}
 		}
+	}
 
-		__syncthreads();
+	__syncthreads();
 
-		for (int i = 0; i < 16; i++)
+	register unsigned char internBuffer[16];
+	register unsigned char internIV[16];
+
+	for (register int i = 0; i < 16; i++)
+	{
+		internBuffer[i] = BufferData[id + i];
+		internIV[i] = IV[i];
+	}
+
+	key_addition(internIV, sharedSubKeys, 0);
+
+	for (register int i = 1; i < 11; i++)
+	{
+		byte_sub(internIV, sharedSbox);
+		shift_rows(internIV);
+
+		if (i != 10)
 		{
-			internBuffer[i] = out[id + i];
-			internIV[i] = iv[i];
+			mix_columns(internIV);
 		}
 
-		//Encrypt the IV
-		key_addition(internBuffer, sharedSubKeys, 0);
+		key_addition(internIV, sharedSubKeys, i);
+	}
 
-		byte_sub(internBuffer, sharedSbox); shift_rows(internBuffer);
-		mix_columns(internBuffer, sharedGfMul); key_addition(internBuffer, sharedSubKeys, 1);
+	//XOR the encrypted incremented IV with the internBuffer block
+	for (int i = 0; i < KEY_BLOCK; ++i)
+	{
+		unsigned char res = internIV[i] ^ internBuffer[i];
+		res = internBuffer[i];
+	}
 
-		byte_sub(internBuffer, sharedSbox); shift_rows(internBuffer);
-		mix_columns(internBuffer, sharedGfMul); key_addition(internBuffer, sharedSubKeys, 2);
-
-		byte_sub(internBuffer, sharedSbox); shift_rows(internBuffer);
-		mix_columns(internBuffer, sharedGfMul); key_addition(internBuffer, sharedSubKeys, 3);
-
-		byte_sub(internBuffer, sharedSbox); shift_rows(internBuffer);
-		mix_columns(internBuffer, sharedGfMul); key_addition(internBuffer, sharedSubKeys, 4);
-
-		byte_sub(internBuffer, sharedSbox); shift_rows(internBuffer);
-		mix_columns(internBuffer, sharedGfMul); key_addition(internBuffer, sharedSubKeys, 5);
-
-		byte_sub(internBuffer, sharedSbox); shift_rows(internBuffer);
-		mix_columns(internBuffer, sharedGfMul); key_addition(internBuffer, sharedSubKeys, 6);
-
-		byte_sub(internBuffer, sharedSbox); shift_rows(internBuffer);
-		mix_columns(internBuffer, sharedGfMul); key_addition(internBuffer, sharedSubKeys, 7);
-
-		byte_sub(internBuffer, sharedSbox); shift_rows(internBuffer);
-		mix_columns(internBuffer, sharedGfMul); key_addition(internBuffer, sharedSubKeys, 8);
-
-		byte_sub(internBuffer, sharedSbox); shift_rows(internBuffer);
-		mix_columns(internBuffer, sharedGfMul); key_addition(internBuffer, sharedSubKeys, 9);
-
-		byte_sub(internBuffer, sharedSbox); shift_rows(internBuffer);
-		key_addition(internBuffer, sharedSubKeys, 10);
-
-		//XOR the encrypted incremented IV with the internBuffer block
-		for (int i = 0; i < KEY_BLOCK; ++i)
-		{
-			unsigned char res = internIV[i] ^ internBuffer[i];
-			res = internBuffer[i];
-		}
-
-		for (int i = 0; i < 16; i++)
-		{
-			out[id + i] = internBuffer[i];
-		}
+	for (int i = 0; i < 16; i++)
+	{
+		BufferData[id + i] = internBuffer[i];
 	}
 }
 
@@ -121,10 +94,20 @@ __global__ void cuda_aes_encrypt_ctr(unsigned char *out, unsigned char *keys, un
 /*                      SUB LAYER DEVICE KERNEL                      */
 /*********************************************************************/
 
+// Key Addition Kernel
+__device__ void key_addition(unsigned char *internBuffer, unsigned char *key, const unsigned int &round)
+{
+	#pragma unroll
+	for (int i = 0; i != KEY_BLOCK; ++i)
+	{
+		internBuffer[i] = internBuffer[i] ^ key[(KEY_BLOCK * round) + i];
+	}
+}
+
 // unsigned char substitution (S-Boxes) can be parallel
 __device__ void byte_sub(unsigned char *internBuffer, unsigned char *sharedSbox)
 {
-	//#pragma unroll
+	#pragma unroll
 	for (int i = 0; i != KEY_BLOCK; ++i)
 	{
 		internBuffer[i] = sharedSbox[internBuffer[i]];
@@ -135,56 +118,79 @@ __device__ void byte_sub(unsigned char *internBuffer, unsigned char *sharedSbox)
 // B0, B4, B8, B12 stays the same
 __device__ void shift_rows(unsigned char *internBuffer)
 {
-	unsigned char j = 0, k = 0;
+	unsigned char tmpBuffer;
 
-	j = internBuffer[1];
+	tmpBuffer = internBuffer[1];
 	internBuffer[1] = internBuffer[5];
 	internBuffer[5] = internBuffer[9];
 	internBuffer[9] = internBuffer[13];
-	internBuffer[13] = j;
+	internBuffer[13] = tmpBuffer;
 
-	j = internBuffer[10];
-	k = internBuffer[14];
-	internBuffer[10] = internBuffer[2];
-	internBuffer[2] = j;
-	internBuffer[14] = internBuffer[6];
-	internBuffer[6] = k;
+	tmpBuffer = internBuffer[2];
+	internBuffer[2] = internBuffer[10];
+	internBuffer[10] = tmpBuffer;
+	tmpBuffer = internBuffer[6];
+	internBuffer[6] = internBuffer[14];
+	internBuffer[14] = tmpBuffer;
 
-	k = internBuffer[3];
-	internBuffer[3] = internBuffer[15];
+	tmpBuffer = internBuffer[15];
 	internBuffer[15] = internBuffer[11];
 	internBuffer[11] = internBuffer[7];
-	internBuffer[7] = k;
+	internBuffer[7] = internBuffer[3];
+	internBuffer[3] = tmpBuffer;
+}
+
+__device__ unsigned char mulGaloisField2_8(unsigned char a, unsigned char b)
+{
+	register unsigned char p = 0;
+	register unsigned char hi_bit_set;
+	register unsigned char counter;
+
+	for (counter = 0; counter < 8; counter++)
+	{
+		if ((b & 1) == 1)
+			p ^= a;
+		hi_bit_set = (a & 0x80);
+		a <<= 1;
+		if (hi_bit_set == 0x80)
+			a ^= 0x1b;
+		b >>= 1;
+	}
+
+	return p;
 }
 
 // Mix column - can be parallel
-__device__ void mix_columns(unsigned char *internBuffer, unsigned char shared_gf_mul[][6])
+__device__ void mix_columns(unsigned char* column)
 {
-	unsigned char b0, b1, b2, b3;
+	register unsigned char i;
+	register unsigned char cpy[4];
 
-	//#pragma unroll
-	for (int i = 0; i != KEY_BLOCK; i += 4)
+	#pragma unroll
+	for (i = 0; i < 4; i++)
 	{
-		b0 = internBuffer[i + 0];
-		b1 = internBuffer[i + 1];
-		b2 = internBuffer[i + 2];
-		b3 = internBuffer[i + 3];
-
-		internBuffer[i + 0] = shared_gf_mul[b0][0] ^ shared_gf_mul[b1][1] ^ b2 ^ b3;
-		internBuffer[i + 1] = b0 ^ shared_gf_mul[b1][0] ^ shared_gf_mul[b2][1] ^ b3;
-		internBuffer[i + 2] = b0 ^ b1 ^ shared_gf_mul[b2][0] ^ shared_gf_mul[b3][1];
-		internBuffer[i + 3] = shared_gf_mul[b0][1] ^ b1 ^ b2 ^ shared_gf_mul[b3][0];
+		cpy[i] = column[i];
 	}
-}
 
-// Key Addition Kernel
-__device__ void key_addition(unsigned char *internBuffer, unsigned char *key, const unsigned int &round)
-{
-	//#pragma unroll
-	for (int i = 0; i != KEY_BLOCK; ++i)
-	{
-		internBuffer[i] = internBuffer[i] ^ key[(KEY_BLOCK * round) + i];
-	}
+	column[0] = mulGaloisField2_8(cpy[0], 2) ^
+		mulGaloisField2_8(cpy[1], 3) ^
+		mulGaloisField2_8(cpy[2], 1) ^
+		mulGaloisField2_8(cpy[3], 1);
+
+	column[1] = mulGaloisField2_8(cpy[0], 1) ^
+		mulGaloisField2_8(cpy[1], 2) ^
+		mulGaloisField2_8(cpy[2], 3) ^
+		mulGaloisField2_8(cpy[3], 1);
+
+	column[2] = mulGaloisField2_8(cpy[0], 1) ^
+		mulGaloisField2_8(cpy[1], 1) ^
+		mulGaloisField2_8(cpy[2], 2) ^
+		mulGaloisField2_8(cpy[3], 3);
+
+	column[3] = mulGaloisField2_8(cpy[0], 3) ^
+		mulGaloisField2_8(cpy[1], 1) ^
+		mulGaloisField2_8(cpy[2], 1) ^
+		mulGaloisField2_8(cpy[3], 2);
 }
 
 /*********************************************************************/

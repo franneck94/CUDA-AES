@@ -25,14 +25,12 @@ int main()
 
 	for (int i = 6; i > 0; i--)
 	{
-		cout << endl << "Text" << i << endl;
+		cout << endl << "Text" << i;
 		string file_path_key = "C:/Users/Jan/Dropbox/Master AI/Parallel Computing/Project/key.txt";
 		string file_path_messages = "C:/Users/Jan/Dropbox/Master AI/Parallel Computing/Project/text" + std::to_string(i) + ".txt";
 
 		vector<ByteArray> decrypted_solution;
 		vector<ByteArray> encrypted_solution;
-
-		cout << endl << "Starting!";
 
 		// Load data from files
 		ByteArray key = read_key(file_path_key);

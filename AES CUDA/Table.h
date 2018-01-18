@@ -15,5 +15,3 @@
 extern const unsigned char RC[10];
 
 extern unsigned char h_sbox[256];
-
-extern const unsigned char h_gfmul[256][6];

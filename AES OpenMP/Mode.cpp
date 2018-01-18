@@ -53,24 +53,20 @@ void generate_counters(vector<ByteArray> &ctrs, const ByteArray &IV)
 	ByteArray start_counter(KEY_BLOCK - IV.size(), 0x00);
 	ByteArray ctr_i(KEY_BLOCK - IV.size(), 0x00);
 	ByteArray res(KEY_BLOCK, 0x00);
-	int i = 0;
+	size_t i = 0;
 	
-	#pragma omp parallel private(i, res, ctr_i) shared(ctrs, start_counter, IV) num_threads(2)
-	{
-#pragma omp for 
-		for (i = 0; i < ctrs.size(); ++i)
-		{	       
+	for (i = 0; i < ctrs.size(); ++i)
+	{	       
 
-		  res = IV;
+		res = IV;
 		  
-			if (i > 0)
-			{
-				ctr_i = increment_counter(start_counter, i);
-			} 
+		if (i > 0)
+		{
+			ctr_i = increment_counter(start_counter, i);
+		} 
 
-			res.insert(res.end(), ctr_i.begin(), ctr_i.end());
-			ctrs[i] = res;
-		}
+		res.insert(res.end(), ctr_i.begin(), ctr_i.end());
+		ctrs[i] = res;
 	}
 }
 
@@ -91,7 +87,7 @@ const vector<ByteArray> counter_mode(const vector<ByteArray> &messages,
 
 	#pragma omp parallel private(i) shared(aes, encrypted_messages, ctrs, messages, key) num_threads(16)
 	{
-#pragma omp for 
+		#pragma omp for 
 		for (i = 0; i < messages.size(); ++i)
 		{
 			encrypted_messages[i] = XOR(aes.encrypt(ctrs[i]), messages[i]);
@@ -102,7 +98,7 @@ const vector<ByteArray> counter_mode(const vector<ByteArray> &messages,
 	auto end_time = std::chrono::high_resolution_clock::now();
 	auto time = end_time - start_time;
 	microseconds = std::chrono::duration_cast<std::chrono::microseconds>(time).count();
-	cout << endl << "OpenMP Encrypted Duration: " << microseconds / 1000.0f << " (ms)." << endl;
+	cout << endl << "OpenMP Encrypted Duration: " << microseconds / 1000.0f << " (ms).";
 
 	return encrypted_messages;
 }
@@ -124,7 +120,7 @@ const vector<ByteArray> counter_mode_inverse(const vector<ByteArray> &encrypted_
 
 	#pragma omp parallel private(i) shared(aes, decrypted_messages, ctrs, encrypted_messages, key) num_threads(16)
 	{
-#pragma omp for 
+		#pragma omp for 
 		for (i = 0; i < encrypted_messages.size(); ++i)
 		{
 		  decrypted_messages[i] = XOR(aes.encrypt(ctrs[i]), encrypted_messages[i]);
@@ -134,7 +130,7 @@ const vector<ByteArray> counter_mode_inverse(const vector<ByteArray> &encrypted_
 	auto end_time = std::chrono::high_resolution_clock::now();
 	auto time = end_time - start_time;
 	microseconds = std::chrono::duration_cast<std::chrono::microseconds>(time).count();
-	cout << endl << "OpenMP Decrypted Duration: " << microseconds / 1000.0f << " (ms)." << endl;
+	cout << endl << "OpenMP Decrypted Duration: " << microseconds / 1000.0f << " (ms).";
 
 	return decrypted_messages;
 }
