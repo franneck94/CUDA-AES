@@ -24,7 +24,7 @@ int main()
 	float microseconds = 0.0f;
 
 	string file_path_key = "C:/Users/Jan/Dropbox/Master AI/Parallel Computing/Project/key.txt";
-	string file_path_messages = "C:/Users/Jan/Dropbox/Master AI/Parallel Computing/Project/text.txt";
+	string file_path_messages = "C:/Users/Jan/Dropbox/Master AI/Parallel Computing/Project/text2.txt";
 
 	vector<ByteArray> decrypted_solution;
 	vector<ByteArray> encrypted_solution;
@@ -42,7 +42,7 @@ int main()
 	auto end_time = std::chrono::high_resolution_clock::now();
 	auto time = end_time - start_time;
 	microseconds = std::chrono::duration_cast<std::chrono::microseconds>(time).count();
-	cout << endl << "Serial Encrypted Duration: " << microseconds << " (us)." << endl;
+	cout << endl << "Serial Encrypted Duration: " << microseconds / 1000.0f << " (ms)." << endl;
 
 	// Starting Timers and Counter Mode for Decryption
 	start_time = std::chrono::high_resolution_clock::now();
@@ -50,7 +50,7 @@ int main()
 	end_time = std::chrono::high_resolution_clock::now();
 	time = end_time - start_time;
 	microseconds = std::chrono::duration_cast<std::chrono::microseconds>(time).count();
-	cout << endl << "Serial Encrypted Duration: " << microseconds << " (us)." << endl;
+	cout << endl << "Serial Encrypted Duration: " << microseconds / 1000.0f << " (ms)." << endl;
 
 	cout << endl << "Legit solution: " << check_vector_of_byte_arrays(decrypted_solution, messages) << endl;
 
