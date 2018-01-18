@@ -5,10 +5,14 @@
 #include "cuda_runtime.h"
 #include "device_launch_parameters.h"
 #include <cuda.h>
+#include <omp.h>
 
 #include <iostream>
-#include <stdlib.h>
 #include <vector>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <stdint.h>
 
 #include "AES.h"
 #include "Helper.h"
@@ -17,16 +21,170 @@ using std::cout;
 using std::endl;
 using std::vector;
 
+__device__ unsigned char iv[KEY_BLOCK] = 
+{ 
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 
+};
+
 /*********************************************************************/
-/*                           CONSTRUCTORS                            */
+/*                           MAIN KERNEL                             */
 /*********************************************************************/
 
-// Constructor of AES en/decryption
-AES::AES(unsigned char *key)
+__global__ void cuda_aes_encrypt_ctr(unsigned char *out, unsigned char *keys, unsigned char *sbox, unsigned char *gf_mul[], int chunks)
 {
-	m_subkeys = new unsigned char* [SUB_KEYS];
-	m_key = key;
-	key_schedule();
+	int id = (blockDim.x*blockIdx.x + threadIdx.x) * 16;
+
+	if (id < chunks)
+	{
+		unsigned char internBuffer[16];
+		unsigned char internIV[16];
+
+		__shared__ unsigned char sharedSbox[256];
+		__shared__ unsigned char sharedGfMul[256][6];
+		__shared__ unsigned char sharedSubKeys[176];
+
+		if (threadIdx.x == 0)
+		{
+			for (int i = 0; i < 256; ++i)
+			{
+				sharedSbox[i] = sbox[i];
+
+				for (int j = 0; j < 6; ++j)
+				{
+					sharedGfMul[i][j] = gf_mul[i][j];
+				}
+
+				if (i < 176)
+				{
+					sharedSubKeys[i] = keys[i];
+				}
+			}
+		}
+
+		__syncthreads();
+
+		for (int i = 0; i < 16; i++)
+		{
+			internBuffer[i] = out[id + i];
+			internIV[i] = iv[i];
+		}
+
+		//Encrypt the IV
+		key_addition(internBuffer, sharedSubKeys, 0);
+
+		byte_sub(internBuffer, sharedSbox); shift_rows(internBuffer);
+		mix_columns(internBuffer, sharedGfMul); key_addition(internBuffer, sharedSubKeys, 1);
+
+		byte_sub(internBuffer, sharedSbox); shift_rows(internBuffer);
+		mix_columns(internBuffer, sharedGfMul); key_addition(internBuffer, sharedSubKeys, 2);
+
+		byte_sub(internBuffer, sharedSbox); shift_rows(internBuffer);
+		mix_columns(internBuffer, sharedGfMul); key_addition(internBuffer, sharedSubKeys, 3);
+
+		byte_sub(internBuffer, sharedSbox); shift_rows(internBuffer);
+		mix_columns(internBuffer, sharedGfMul); key_addition(internBuffer, sharedSubKeys, 4);
+
+		byte_sub(internBuffer, sharedSbox); shift_rows(internBuffer);
+		mix_columns(internBuffer, sharedGfMul); key_addition(internBuffer, sharedSubKeys, 5);
+
+		byte_sub(internBuffer, sharedSbox); shift_rows(internBuffer);
+		mix_columns(internBuffer, sharedGfMul); key_addition(internBuffer, sharedSubKeys, 6);
+
+		byte_sub(internBuffer, sharedSbox); shift_rows(internBuffer);
+		mix_columns(internBuffer, sharedGfMul); key_addition(internBuffer, sharedSubKeys, 7);
+
+		byte_sub(internBuffer, sharedSbox); shift_rows(internBuffer);
+		mix_columns(internBuffer, sharedGfMul); key_addition(internBuffer, sharedSubKeys, 8);
+
+		byte_sub(internBuffer, sharedSbox); shift_rows(internBuffer);
+		mix_columns(internBuffer, sharedGfMul); key_addition(internBuffer, sharedSubKeys, 9);
+
+		byte_sub(internBuffer, sharedSbox); shift_rows(internBuffer);
+		key_addition(internBuffer, sharedSubKeys, 10);
+
+		//XOR the encrypted incremented IV with the internBuffer block
+		for (int i = 0; i < KEY_BLOCK; ++i)
+		{
+			unsigned char res = internIV[i] ^ internBuffer[i];
+			res = internBuffer[i];
+		}
+
+		for (int i = 0; i < 16; i++)
+		{
+			out[id + i] = internBuffer[i];
+		}
+	}
+}
+
+/*********************************************************************/
+/*                      SUB LAYER DEVICE KERNEL                      */
+/*********************************************************************/
+
+// unsigned char substitution (S-Boxes) can be parallel
+__device__ void byte_sub(unsigned char *internBuffer, unsigned char *sharedSbox)
+{
+	//#pragma unroll
+	for (int i = 0; i != KEY_BLOCK; ++i)
+	{
+		internBuffer[i] = sharedSbox[internBuffer[i]];
+	}
+}
+
+// Shift rows - can be parallel
+// B0, B4, B8, B12 stays the same
+__device__ void shift_rows(unsigned char *internBuffer)
+{
+	unsigned char j = 0, k = 0;
+
+	j = internBuffer[1];
+	internBuffer[1] = internBuffer[5];
+	internBuffer[5] = internBuffer[9];
+	internBuffer[9] = internBuffer[13];
+	internBuffer[13] = j;
+
+	j = internBuffer[10];
+	k = internBuffer[14];
+	internBuffer[10] = internBuffer[2];
+	internBuffer[2] = j;
+	internBuffer[14] = internBuffer[6];
+	internBuffer[6] = k;
+
+	k = internBuffer[3];
+	internBuffer[3] = internBuffer[15];
+	internBuffer[15] = internBuffer[11];
+	internBuffer[11] = internBuffer[7];
+	internBuffer[7] = k;
+}
+
+// Mix column - can be parallel
+__device__ void mix_columns(unsigned char *internBuffer, unsigned char shared_gf_mul[][6])
+{
+	unsigned char b0, b1, b2, b3;
+
+	//#pragma unroll
+	for (int i = 0; i != KEY_BLOCK; i += 4)
+	{
+		b0 = internBuffer[i + 0];
+		b1 = internBuffer[i + 1];
+		b2 = internBuffer[i + 2];
+		b3 = internBuffer[i + 3];
+
+		internBuffer[i + 0] = shared_gf_mul[b0][0] ^ shared_gf_mul[b1][1] ^ b2 ^ b3;
+		internBuffer[i + 1] = b0 ^ shared_gf_mul[b1][0] ^ shared_gf_mul[b2][1] ^ b3;
+		internBuffer[i + 2] = b0 ^ b1 ^ shared_gf_mul[b2][0] ^ shared_gf_mul[b3][1];
+		internBuffer[i + 3] = shared_gf_mul[b0][1] ^ b1 ^ b2 ^ shared_gf_mul[b3][0];
+	}
+}
+
+// Key Addition Kernel
+__device__ void key_addition(unsigned char *internBuffer, unsigned char *key, const unsigned int &round)
+{
+	//#pragma unroll
+	for (int i = 0; i != KEY_BLOCK; ++i)
+	{
+		internBuffer[i] = internBuffer[i] ^ key[(KEY_BLOCK * round) + i];
+	}
 }
 
 /*********************************************************************/
@@ -34,36 +192,50 @@ AES::AES(unsigned char *key)
 /*********************************************************************/
 
 // Computing the round keys
-void AES::key_schedule()
+unsigned char* key_schedule(unsigned char *key)
 {
 	int r;
+	unsigned char **subkeys;
+	subkeys = new unsigned char*[NUM_ROUNDS];
 
 	for (r = 0; r != SUB_KEYS; r++)
 	{
 		if (r == 0)
-			m_subkeys[r] = m_key;
+			subkeys[r] = key;
 		else
 		{
 			if (AES_BITS == 128)
-				m_subkeys[r] = sub_key128(m_subkeys[r - 1], r - 1);
+				subkeys[r] = sub_key128(subkeys[r - 1], r - 1);
 			else
 				cout << "TODO! 192-bit and 256-bit not implemented yet." << endl;
 		}
 	}
+
+	unsigned char *keys;
+	keys = new unsigned char[NUM_ROUNDS * KEY_BLOCK];
+
+	for (int i = 0; i != NUM_ROUNDS; ++i)
+	{
+		for (int j = 0; j != KEY_BLOCK; ++j)
+		{
+			keys[i * NUM_ROUNDS + j] = subkeys[i][j];
+		}
+	}
+
+	return keys;
 }
 
 // Computing subkeys for round 1 up to 10
-unsigned char* AES::sub_key128(unsigned char *prev_subkey, const int &r)
+unsigned char* sub_key128(unsigned char *prev_subkey, const int &r)
 {
 	unsigned char *result;
 	result = new unsigned char[KEY_BLOCK];
-
 	int i;
 
-	result[0] = (prev_subkey[0] ^ (sbox[prev_subkey[13]] ^ RC[r]));
-	result[1] = (prev_subkey[1] ^ sbox[prev_subkey[14]]);
-	result[2] = (prev_subkey[2] ^ sbox[prev_subkey[15]]);
-	result[3] = (prev_subkey[3] ^ sbox[prev_subkey[12]]);
+	result[0] = (prev_subkey[0] ^ (h_sbox[prev_subkey[13]] ^ RC[r]));
+	result[1] = (prev_subkey[1] ^ h_sbox[prev_subkey[14]]);
+	result[2] = (prev_subkey[2] ^ h_sbox[prev_subkey[15]]);
+	result[3] = (prev_subkey[3] ^ h_sbox[prev_subkey[12]]);
 
 	for (i = 4; i != KEY_BLOCK; i += 4)
 	{
@@ -74,254 +246,4 @@ unsigned char* AES::sub_key128(unsigned char *prev_subkey, const int &r)
 	}
 
 	return result;
-}
-
-unsigned char** AES::get_subkeys()
-{
-	return m_subkeys;
-}
-
-/*********************************************************************/
-/*                       EN- DECRYPTION FUNCTIONS                    */
-/*********************************************************************/
-
-// Starting the encryption phase
-void encrypt(unsigned char *message, unsigned char **subkeys)
-{
-	// CUDA Block Dimensions
-	dim3 dim_block_key_addition(KEY_BLOCK);
-	dim3 dim_block_byte_sub(KEY_BLOCK);
-	dim3 dim_block_shift_row(SHIFT_ROW_LIMIT);
-	dim3 dim_block_mix_column(MIX_COLUMN_LIMIT);
-
-	int round = 0;
-
-	// Allocate GPU Memory
-	unsigned char *d_message = NULL;
-	unsigned char **d_subkeys = NULL;
-	cudaMalloc((void **)&d_message, sizeof(message));
-	cudaMalloc((void **)&d_subkeys, sizeof(subkeys));
-	cudaMemcpy(d_message, message, sizeof(message), cudaMemcpyHostToDevice);
-	cudaMemcpy(d_subkeys, subkeys, sizeof(subkeys), cudaMemcpyHostToDevice);
-
-	// Key-Add before round 1 (R0)
-	key_addition_kernel << <1, dim_block_key_addition >> >(d_message, d_subkeys, round);
-	round = 1;
-
-	// Round 1 to NUM_ROUNDS - 1 (R1 to R9)
-	for (round; round != NUM_ROUNDS; round++)
-	{
-		byte_sub_kernel << <1, dim_block_byte_sub >> >(d_message);
-		shift_rows_kernel << <1, dim_block_shift_row >> >(d_message);
-		mix_columns_kernel << <1, dim_block_mix_column >> >(d_message);
-		key_addition_kernel << <1, dim_block_key_addition >> >(d_message, d_subkeys, round);
-	}
-
-	// Last round without Mix-Column (RNUM_ROUNDS)
-	round = NUM_ROUNDS;
-	byte_sub_kernel << <1, dim_block_byte_sub >> >(d_message);
-	shift_rows_kernel << <1, dim_block_shift_row >> >(d_message);
-	key_addition_kernel << <1, dim_block_key_addition >> >(d_message, d_subkeys, round);
-
-	// Deallocate GPU Memory
-	cudaMemcpy(message, d_message, sizeof(message), cudaMemcpyDeviceToHost);
-	cudaFree(d_message);
-	cudaFree(d_subkeys);
-}
-
-// Starting the decryption phase
-void decrypt(unsigned char *message, unsigned char **subkeys)
-{
-	// CUDA Block Dimensions
-	dim3 dim_block_key_addition(KEY_BLOCK);
-	dim3 dim_block_byte_sub(KEY_BLOCK);
-	dim3 dim_block_shift_row(SHIFT_ROW_LIMIT);
-	dim3 dim_block_mix_column(MIX_COLUMN_LIMIT);
-
-	int round = NUM_ROUNDS;
-
-	// Allocate GPU Memory
-	unsigned char *d_message = NULL;
-	unsigned char **d_subkeys = NULL;
-	cudaMalloc((void **)&d_message, sizeof(message));
-	cudaMalloc((void **)&d_subkeys, sizeof(subkeys));
-	cudaMemcpy(d_message, message, sizeof(message), cudaMemcpyHostToDevice);
-	cudaMemcpy(d_subkeys, subkeys, sizeof(subkeys), cudaMemcpyHostToDevice);
-
-	// Key-Add before round (Inverse NUM_ROUNDS)
-	key_addition_kernel << <1, dim_block_key_addition >> >(d_message, d_subkeys, round);
-	shift_rows_inv_kernel << <1, dim_block_shift_row >> >(d_message);
-	byte_sub_inv_kernel << <1, dim_block_byte_sub >> >(d_message);
-	round = NUM_ROUNDS - 1;
-
-	// Round NUM_ROUNDS - 10 to 1 (Inverse R9 to R1)
-	for (round; round > 0; round--)
-	{
-		key_addition_kernel << <1, dim_block_key_addition >> >(d_message, d_subkeys, round);
-		mix_columns_inv_kernel << <1, dim_block_mix_column >> >(d_message);
-		shift_rows_inv_kernel << <1, dim_block_shift_row >> >(d_message);
-		byte_sub_inv_kernel << <1, dim_block_byte_sub >> >(d_message);
-	}
-
-	// Last round without Mix-Column (Inverse R0)
-	round = 0;
-	key_addition_kernel << <1, dim_block_key_addition >> >(d_message, d_subkeys, round);
-
-	// Deallocate GPU Memory
-	cudaMemcpy(message, d_message, sizeof(message), cudaMemcpyDeviceToHost);
-	cudaFree(d_message);
-	cudaFree(d_subkeys);
-}
-
-/*********************************************************************/
-/*                        SUB LAYER KERNEL                           */
-/*********************************************************************/
-
-// Byte substitution (S-Boxes) can be parallel
-__global__ void byte_sub_kernel(unsigned char *message)
-{
-	int id = blockIdx.x*blockDim.x + threadIdx.x;
-
-	if (id < KEY_BLOCK)
-	{
-		message[id] = d_sbox[message[id]];
-	}
-}
-
-// Inverse byte substitution (S-Boxes) can be parallel
-__global__ void byte_sub_inv_kernel(unsigned char *message)
-{
-	int id = blockIdx.x*blockDim.x + threadIdx.x;
-
-	if (id < KEY_BLOCK)
-	{
-		message[id] = d_sboxinv[message[id]];
-	}
-}
-
-// Shift rows - can be parallel
-// B0, B4, B8, B12 stays the same
-__global__ void shift_rows_kernel(unsigned char *message)
-{
-	int id = blockIdx.x*blockDim.x + threadIdx.x;
-	unsigned char j = 0, k = 0;
-
-	if (id < SHIFT_ROW_LIMIT)
-	{
-		if (id == 0)
-		{
-			j = message[1];
-			message[1] = message[5];
-			message[5] = message[9];
-			message[9] = message[13];
-			message[13] = j;
-		}
-		else if (id == 1)
-		{
-			j = message[10];
-			k = message[14];
-			message[10] = message[2];
-			message[2] = j;
-			message[14] = message[6];
-			message[6] = k;
-		}
-		else
-		{
-			k = message[3];
-			message[3] = message[15];
-			message[15] = message[11];
-			message[11] = message[7];
-			message[7] = k;
-		}
-	}
-}
-
-// Inverse shift rows - can be parallel
-// C0, C4, C8, C12 stays the same
-__global__ void shift_rows_inv_kernel(unsigned char *message)
-{
-	int id = blockIdx.x*blockDim.x + threadIdx.x;
-	unsigned char j = 0, k = 0;
-
-	if (id < SHIFT_ROW_LIMIT)
-	{
-		if (id == 0)
-		{
-			j = message[1];
-			message[1] = message[13];
-			message[13] = message[9];
-			message[9] = message[5];
-			message[5] = j;
-		}
-		else if (id == 1)
-		{
-			j = message[2];
-			k = message[6];
-			message[2] = message[10];
-			message[10] = j;
-			message[6] = message[14];
-			message[14] = k;
-		}
-		else
-		{
-			j = message[3];
-			message[3] = message[7];
-			message[7] = message[11];
-			message[11] = message[15];
-			message[15] = j;
-		}
-	}
-}
-
-// Mix column - can be parallel
-__global__ void mix_columns_kernel(unsigned char *message)
-{
-	unsigned char b0, b1, b2, b3;
-	int id = blockIdx.x*blockDim.x + threadIdx.x;
-
-	if (id < MIX_COLUMN_LIMIT)
-	{
-		b0 = message[id + 0];
-		b1 = message[id + 1];
-		b2 = message[id + 2];
-		b3 = message[id + 3];
-
-		// Mix-Col Matrix * b vector
-		message[id + 0] = d_mul[b0][0] ^ d_mul[b1][1] ^ b2 ^ b3;
-		message[id + 1] = b0 ^ d_mul[b1][0] ^ d_mul[b2][1] ^ b3;
-		message[id + 2] = b0 ^ b1 ^ d_mul[b2][0] ^ d_mul[b3][1];
-		message[id + 3] = d_mul[b0][1] ^ b1 ^ b2 ^ d_mul[b3][0];
-	}
-}
-
-// Inverse mix column
-__global__ void mix_columns_inv_kernel(unsigned char *message)
-{
-	unsigned char c0, c1, c2, c3;
-	int id = blockIdx.x*blockDim.x + threadIdx.x;
-
-	if (id < MIX_COLUMN_LIMIT)
-	{
-		c0 = message[id + 0];
-		c1 = message[id + 1];
-		c2 = message[id + 2];
-		c3 = message[id + 3];
-
-		// Mix-Col Inverse Matrix * c vector
-		message[id + 0] = d_mul[c0][5] ^ d_mul[c1][3] ^ d_mul[c2][4] ^ d_mul[c3][2];
-		message[id + 1] = d_mul[c0][2] ^ d_mul[c1][5] ^ d_mul[c2][3] ^ d_mul[c3][4];
-		message[id + 2] = d_mul[c0][4] ^ d_mul[c1][2] ^ d_mul[c2][5] ^ d_mul[c3][3];
-		message[id + 3] = d_mul[c0][3] ^ d_mul[c1][4] ^ d_mul[c2][2] ^ d_mul[c3][5];
-	}
-}
-
-// Key Addition Kernel
-__global__ void key_addition_kernel(unsigned char *message, unsigned char **subkeys, const unsigned int &round)
-{
-	int id = blockIdx.x*blockDim.x + threadIdx.x;
-
-	if (id < KEY_BLOCK)
-	{
-		message[id] = message[id] ^ subkeys[round][id];
-	}
 }

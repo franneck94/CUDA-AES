@@ -7,10 +7,10 @@
     <CudaCompile Include="Helper.cu">
       <Filter>Quelldateien</Filter>
     </CudaCompile>
-    <CudaCompile Include="Mode.cu">
+    <CudaCompile Include="main.cu">
       <Filter>Quelldateien</Filter>
     </CudaCompile>
-    <CudaCompile Include="main.cu">
+    <CudaCompile Include="Table.cu">
       <Filter>Quelldateien</Filter>
     </CudaCompile>
   </ItemGroup>
@@ -21,10 +21,10 @@
     <ClInclude Include="Helper.h">
       <Filter>Headerdateien</Filter>
     </ClInclude>
-    <ClInclude Include="Mode.h">
+    <ClInclude Include="Table.h">
       <Filter>Headerdateien</Filter>
     </ClInclude>
-    <ClInclude Include="Table.h">
+    <ClInclude Include="timer.h">
       <Filter>Headerdateien</Filter>
     </ClInclude>
   </ItemGroup>

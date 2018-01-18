@@ -14,13 +14,13 @@
     <CudaCompile Include="AES.cu" />
     <CudaCompile Include="Helper.cu" />
     <CudaCompile Include="main.cu" />
-    <CudaCompile Include="Mode.cu" />
+    <CudaCompile Include="Table.cu" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="AES.h" />
     <ClInclude Include="Helper.h" />
-    <ClInclude Include="Mode.h" />
     <ClInclude Include="Table.h" />
+    <ClInclude Include="timer.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{0764F239-FBAF-45E6-9502-A4258630B966}</ProjectGuid>
