@@ -13,5 +13,4 @@
 /*********************************************************************/
 
 extern const unsigned char RC[10];
-
 extern unsigned char h_sbox[256];

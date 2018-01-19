@@ -12,7 +12,6 @@
 #include <vector>
 #include <chrono>
 #include <string>
-#include <tuple>
 
 #include "Helper.h"
 #include "AES.h"
@@ -23,7 +22,8 @@ using std::endl;
 using std::vector;
 using std::string;
 
-#define THREADS_PER_BLOCK 1024
+#define THREADS_PER_BLOCK 128
+#define ROUNDS 10
 
 /*********************************************************************/
 /*                       GPU HELPER FUNCTIONS                        */
@@ -51,11 +51,11 @@ void counter_launch_kernel(unsigned char *messages, unsigned char *results, unsi
 	float milliseconds = 0.0f;
 
 	// Define launch config
-	int chunks = filesize / 16;
+	int chunks = filesize / KEY_BLOCK;
 	int ThreadsPerBlock = THREADS_PER_BLOCK;
 	int Blocks = chunks / ThreadsPerBlock;
 
-	// Pushes results to device memory
+	// Results to device memory
 	unsigned char *d_results;
 	gpuErrchk(cudaMalloc((void **)&d_results, message_size * sizeof(unsigned char)));
 	gpuErrchk(cudaMemcpy(d_results, messages, message_size * sizeof(unsigned char), cudaMemcpyHostToDevice));
@@ -70,14 +70,18 @@ void counter_launch_kernel(unsigned char *messages, unsigned char *results, unsi
 	gpuErrchk(cudaMalloc((void **)&d_keys, NUM_ROUNDS * KEY_BLOCK * sizeof(unsigned char)));
 	gpuErrchk(cudaMemcpy(d_keys, keys, NUM_ROUNDS * KEY_BLOCK * sizeof(unsigned char), cudaMemcpyHostToDevice));
 
-	GpuTimer timer;
-	timer.Start();
-	aes_encryption << <Blocks, ThreadsPerBlock >> > (d_sbox, d_results, d_keys);
-	cudaThreadSynchronize();
-	cudaDeviceSynchronize();
-	timer.Stop();
-	milliseconds = timer.ElapsedMilliSeconds();
-	cout << "Done Counter Mode in: " << milliseconds << " (ms)." << endl;
+	for (int i = 0; i != ROUNDS; ++i)
+	{
+		GpuTimer timer;
+		timer.Start();
+		aes_encryption << <Blocks, ThreadsPerBlock >> > (d_sbox, d_results, d_keys);
+		cudaThreadSynchronize();
+		cudaDeviceSynchronize();
+		timer.Stop();
+		milliseconds += timer.ElapsedMilliSeconds();
+	}
+
+	cout << "Done Counter Mode in: " << milliseconds / (float) NUM_ROUNDS << " (ms)." << endl;
 
 	gpuErrchk(cudaMemcpy(results, d_results, message_size * sizeof(unsigned char), cudaMemcpyDeviceToHost));
 	gpuErrchk(cudaFree(d_results));
@@ -102,13 +106,9 @@ int main()
 
 		cout << endl << std::dec << "Starting AES CUDA - COUNTER MODE" << endl;
 
-		/* Read in input file */
+		// Read in data
 		unsigned char * plaintexts = (unsigned char *)malloc(sizeof(unsigned char)*filesize);
 		read_datafile(file_path_messages.c_str(), plaintexts);
-
-		/* Call Function */
-		int ThreadsPerBlock = 1024;
-		int Blocks = (filesize / 16) / ThreadsPerBlock;
 
 		// Malloc Memory for Enc/Decrypted Solutions
 		unsigned char *decrypted_solution;
@@ -127,6 +127,7 @@ int main()
 		cout << endl << "Starting AES CUDA - INVERSE COUNTER MODE KERNEL " << endl;
 		counter_launch_kernel(encrypted_solution, decrypted_solution, keys, filesize, filesize);
 
+		// Checking if Decryption of Encryption is the plaintext
 		cout << endl << "Legit solution: " << check_byte_arrays(plaintexts, decrypted_solution, filesize) << endl;
 	}
 

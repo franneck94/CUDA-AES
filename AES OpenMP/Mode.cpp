@@ -21,7 +21,8 @@ using std::vector;
 using std::string;
 using std::ifstream;
 
-#define NUM_THREADS 2
+#define NUM_THREADS 20
+#define ROUNDS 10
 
 /*********************************************************************/
 /*                     COUNTER MODE FUNCTIONS                        */
@@ -59,7 +60,6 @@ void generate_counters(vector<ByteArray> &ctrs, const ByteArray &IV)
 	
 	for (i = 0; i < ctrs.size(); ++i)
 	{	       
-
 		res = IV;
 		  
 		if (i > 0)
@@ -85,22 +85,33 @@ const vector<ByteArray> counter_mode(const vector<ByteArray> &messages,
 
 	// Starting Timers and Counter Mode for Encryption
 	float microseconds = 0.0f;
-	auto start_time = std::chrono::high_resolution_clock::now();
 
-	#pragma omp parallel private(i) shared(aes, encrypted_messages, ctrs, messages, key) num_threads(NUM_THREADS)
+	for (int t = 2; t != NUM_THREADS; t += 2)
 	{
-		#pragma omp for 
-		for (i = 0; i < messages.size(); ++i)
-		{
-			encrypted_messages[i] = XOR(aes.encrypt(ctrs[i]), messages[i]);
-		}
-	       
-	}
+		cout << endl << "OpenMP (" << t << " Threads) - Encrypted Duration  ";
 
-	auto end_time = std::chrono::high_resolution_clock::now();
-	auto time = end_time - start_time;
-	microseconds = std::chrono::duration_cast<std::chrono::microseconds>(time).count();
-	cout << endl << "OpenMP Encrypted Duration: " << microseconds / 1000.0f << " (ms).";
+		for (int r = 0; r != ROUNDS; ++r)
+		{
+			auto start_time = std::chrono::high_resolution_clock::now();
+			
+			#pragma omp parallel private(i) shared(aes, encrypted_messages, ctrs, messages) num_threads(t)
+			{
+				#pragma omp for 
+				for (i = 0; i < messages.size(); ++i)
+				{
+					encrypted_messages[i] = XOR(aes.encrypt(ctrs[i]), messages[i]);
+				}
+
+			}
+
+			auto end_time = std::chrono::high_resolution_clock::now();
+			auto time = end_time - start_time;
+			microseconds += std::chrono::duration_cast<std::chrono::microseconds>(time).count();
+		}
+
+		cout << microseconds / (1000.0f * ROUNDS) << endl;
+		microseconds = 0.0f;
+	}
 
 	return encrypted_messages;
 }
@@ -118,21 +129,33 @@ const vector<ByteArray> counter_mode_inverse(const vector<ByteArray> &encrypted_
 
 	// Starting Timers and Counter Mode for Encryption
 	float microseconds = 0.0f;
-	auto start_time = std::chrono::high_resolution_clock::now();
 
-	#pragma omp parallel private(i) shared(aes, decrypted_messages, ctrs, encrypted_messages, key) num_threads(NUM_THREADS)
+	for (int t = 2; t != NUM_THREADS; t += 2)
 	{
-		#pragma omp for 
-		for (i = 0; i < encrypted_messages.size(); ++i)
-		{
-		  decrypted_messages[i] = XOR(aes.encrypt(ctrs[i]), encrypted_messages[i]);
-		}
-	}
+		cout << endl << "OpenMP (" << t << " Threads) - Decrypted Duration  ";
 
-	auto end_time = std::chrono::high_resolution_clock::now();
-	auto time = end_time - start_time;
-	microseconds = std::chrono::duration_cast<std::chrono::microseconds>(time).count();
-	cout << endl << "OpenMP Decrypted Duration: " << microseconds / 1000.0f << " (ms).";
+		for (int r = 0; r != ROUNDS; ++r)
+		{
+			auto start_time = std::chrono::high_resolution_clock::now();
+
+			#pragma omp parallel private(i) shared(aes, encrypted_messages, ctrs, decrypted_messages) num_threads(t)
+			{
+				#pragma omp for 
+				for (i = 0; i < encrypted_messages.size(); ++i)
+				{
+					decrypted_messages[i] = XOR(aes.encrypt(ctrs[i]), encrypted_messages[i]);
+				}
+
+			}
+
+			auto end_time = std::chrono::high_resolution_clock::now();
+			auto time = end_time - start_time;
+			microseconds += std::chrono::duration_cast<std::chrono::microseconds>(time).count();
+		}
+
+		cout << microseconds / (1000.0f * ROUNDS) << endl;
+		microseconds = 0.0f;
+	}
 
 	return decrypted_messages;
 }
