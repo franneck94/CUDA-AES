@@ -16,7 +16,7 @@ plt.plot(test_sizes, serial, color="black")
 plt.plot(test_sizes, openmp_best, color="blue")
 plt.plot(test_sizes, cuda_best, color="red")
 
-plt.legend(['Serial', 'OpenMP (12 Threads)', 'CUDA (1024 Threads)'], prop=fontP)
+plt.legend(['Serial', 'OpenMP (12 Threads)', 'CUDA (1024 Threads)'], prop=fontP, loc=2)
 plt.title('Comparison of Serial vs. OpenMP vs. CUDA')
 plt.xlabel('Test Size (MB)')
 plt.ylabel('Duration of Encryption (ms)')
@@ -24,34 +24,46 @@ plt.ylabel('Duration of Encryption (ms)')
 plt.savefig("fig1.png")
 plt.show()
 
-######## OPENMP ##########
+######## OPENMP 2 - 8 ##########
 
 _2 = [118, 182, 367, 612, 898, 1181]
 _4 = [68, 95, 192, 329, 475, 594]
 _6 = [50, 80, 158, 264, 370, 487]
 _8 = [49, 78, 152, 262, 371, 486]
+
+plt.plot(test_sizes, _2, color="black")
+plt.plot(test_sizes, _4, color="brown")
+plt.plot(test_sizes, _6, color="blue")
+plt.plot(test_sizes, _8, color="green")
+
+plt.legend(['2 Threads', '4 Threads', '6 Threads', '8 Threads'], prop=fontP, loc=2)
+plt.title('OpenMP Comparison')
+plt.xlabel('Test Size (MB)')
+plt.ylabel('Duration of Encryption (ms)')
+
+plt.savefig("fig2.png")
+plt.show()
+
+######## OPENMP 10 - 18 ##########
+
 _10 = [41, 65, 133, 223, 331, 434]
 _12 = [36, 57, 116, 197, 287, 381]
 _14 = [53, 74, 133, 219, 309, 414]
 _16 = [51, 71, 131, 216, 312, 414]
 _18 = [45, 67, 132, 207, 304, 417]
 
-plt.plot(test_sizes, _2, color="black")
-plt.plot(test_sizes, _4, color="brown")
-plt.plot(test_sizes, _6, color="blue")
-plt.plot(test_sizes, _8, color="pink")
 plt.plot(test_sizes, _10, color="cyan")
 plt.plot(test_sizes, _12, color="orange")
 plt.plot(test_sizes, _14, color="red")
 plt.plot(test_sizes, _16, color="yellow")
 plt.plot(test_sizes, _18, color="green")
 
-plt.legend(['2 Threads', '4 Threads', '6 Threads', '8 Threads', '10 Threads', '12 Threads', '14 Threads', '15 Threads', '18 Threads'], prop=fontP)
+plt.legend(['10 Threads', '12 Threads', '14 Threads', '15 Threads', '18 Threads'], prop=fontP, loc=2)
 plt.title('OpenMP Comparison')
 plt.xlabel('Test Size (MB)')
 plt.ylabel('Duration of Encryption (ms)')
 
-plt.savefig("fig2.png")
+plt.savefig("fig3.png")
 plt.show()
 
 ######## CUDA ##########
@@ -66,10 +78,10 @@ plt.plot(test_sizes, _256, color="red")
 plt.plot(test_sizes, _512, color="blue")
 plt.plot(test_sizes, _1024, color="black")
 
-plt.legend(['128 Threads', '256 Threads', '512 Threads', '1024 Threads'], prop=fontP)
+plt.legend(['128 Threads', '256 Threads', '512 Threads', '1024 Threads'], prop=fontP, loc=2)
 plt.title('CUDA Comparison (Threads/Block)')
 plt.xlabel('Test Size (MB)')
 plt.ylabel('Duration of Encryption (ms)')
 
-plt.savefig("fig3.png")
+plt.savefig("fig4.png")
 plt.show()
