@@ -73,74 +73,73 @@ __device__ unsigned char IV[KEY_BLOCK] =
 /*                           MAIN KERNEL                             */
 /*********************************************************************/
 
-__global__ void aes_encryption(unsigned char* SBOX, unsigned char* BufferData, unsigned char* SubKeys, unsigned int width)
+__global__ void aes_encryption(unsigned char *SBOX, unsigned char *buffer, unsigned char *SubKeys, unsigned int width)
 {
 	int id = (blockDim.x * blockIdx.x + threadIdx.x) * KEY_BLOCK;
 
-	if (id < width)
+	__shared__ unsigned char sharedSbox[256];
+	__shared__ unsigned char sharedSubKeys[176];
+
+	// Save values to shared memory
+	if (threadIdx.x == 0)
 	{
-		__shared__ unsigned char sharedSbox[256];
-		__shared__ unsigned char sharedSubKeys[176];
-
-		// Save values to shared memory
-		if (threadIdx.x == 0)
+		for (int i = 0; i != 256; ++i)
 		{
-			for (int i = 0; i != 256; ++i)
-			{
-				sharedSbox[i] = SBOX[i];
+			sharedSbox[i] = SBOX[i];
 
-				if (i < 176)
-				{
-					sharedSubKeys[i] = SubKeys[i];
-				}
+			if (i < 176)
+			{
+				sharedSubKeys[i] = SubKeys[i];
 			}
 		}
+	}
 
-		__syncthreads();
+	__syncthreads();
 
-		// Compute the new IV vector
-		short idx, c = 0;
-		unsigned char new_iv[KEY_BLOCK];
+	// Compute the new IV vector
+	short idx, c = 0;
+	unsigned char iv_new[KEY_BLOCK];
 
-		if (id > 0)
-		{
-			for (idx = KEY_BLOCK - 1; idx >= 0; idx--)
-			{
-				short shift = (KEY_BLOCK - (idx + 1)) * 8;
-				unsigned char op1 = IV[idx];
-				unsigned char op2 = ((id &(0xff << shift)) >> shift);
-				new_iv[idx] = op1 + op2 + c;
-				c = (new_iv[idx] > op1 && new_iv[idx] > op2) ? 0 : 1;
-			}
-		}
+	for (idx = KEY_BLOCK - 1; idx >= 0; idx--)
+	{
+		short shift = (KEY_BLOCK - (idx + 1)) * 8;
+		unsigned char op1 = IV[idx];
+		unsigned char op2 = ((id &(0xff << shift)) >> shift);
+		iv_new[idx] = op1 + op2 + c;
+		c = (iv_new[idx] > op1 && iv_new[idx] > op2) ? 0 : 1;
+	}
 
-		int round = 0;
+	// Save actual encryption block
+	unsigned char temp[KEY_BLOCK];
 
-		// Key-Add before round 1 (R0)
-		key_addition(new_iv, sharedSubKeys, round);
-		round = 1;
+	#pragma unroll
+	for (int i = 0; i != KEY_BLOCK; ++i)
+	{
+		temp[i] = buffer[id + i];
+	}
 
-		// Round 1 to NUM_ROUNDS - 1 (R1 to R9)
-		for (round; round != NUM_ROUNDS; ++round)
-		{
-			byte_sub(new_iv, sharedSbox);
-			shift_rows(new_iv);
-			mix_columns(new_iv);
-			key_addition(new_iv, sharedSubKeys, round);
-		}
+	// Starting AES Rounds
+	key_addition(iv_new, sharedSubKeys, 0);
 
-		// Last round without Mix-Column (RNUM_ROUNDS)
-		round = NUM_ROUNDS;
-		byte_sub(new_iv, sharedSbox);
-		shift_rows(new_iv);
-		key_addition(new_iv, sharedSubKeys, round);
+	for (int i = 1; i != NUM_ROUNDS; ++i)
+	{
+		byte_sub(iv_new, sharedSbox);
+		shift_rows(iv_new);
+		mix_columns(iv_new);
+		key_addition(iv_new, sharedSubKeys, i);
+	}
 
-		//XOR the encrypted incremented IV with the buffer block
-		#pragma unroll 
-		for (int i = 0; i != KEY_BLOCK; ++i)
-		{
-			BufferData[id + i] ^= new_iv[i];
-		}
+	byte_sub(iv_new, sharedSbox);
+	shift_rows(iv_new);
+	key_addition(iv_new, sharedSubKeys, NUM_ROUNDS);
+
+	//XOR the encrypted incremented IV with the buffer block
+	key_addition(iv_new, temp, 0);
+
+	#pragma unroll 
+	for (int i = 0; i != KEY_BLOCK; ++i)
+	{
+		buffer[id + i] = temp[i];
 	}
 }
 
