@@ -100,17 +100,6 @@ unsigned char* random_byte_array(const unsigned int &length)
 	return byte_array;
 }
 
-// Cout whole unsigned char Array
-void print_byte_array(unsigned char *arr, const unsigned int &size)
-{
-	for (size_t i = 0; i != size; ++i)
-	{
-		cout << std::hex << (int)arr[i] << "\t";
-	}
-	cout << endl << endl;
-}
-
-
 // Checks if two ByteArrays has same values
 bool check_byte_arrays(unsigned char *arr1, unsigned char *arr2, const unsigned int &size)
 {

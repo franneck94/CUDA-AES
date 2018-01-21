@@ -36,9 +36,6 @@ unsigned char* read_key(const string &file_path);
 // Generate IV-Vector for Counter Mode
 unsigned char* random_byte_array(const unsigned int &length);
 
-// Cout whole unsigned char Array
-void print_byte_array(unsigned char *arr, const unsigned int &size);
-
 // Checks if two unsigned chars has same values
 bool check_byte_arrays(unsigned char *arr1, unsigned char *arr2, const unsigned int &size);
 

@@ -30,13 +30,22 @@ using std::ifstream;
 ByteArray increment_counter(const ByteArray &start_counter,
 							const unsigned int &round)
 {
-	/*string next_counter_str(start_counter.begin(), start_counter.end());
-	unsigned long main_hex_val = std::stol(next_counter_str);
-	main_hex_val += round;
-	next_counter_str = main_hex_val;*/
+	/* Assuming start_counter will be at most of size 8 Byte
+	*/
+	int64_t ctr_converted = 0x00;
+	unsigned int ctr_size = start_counter.size();
+	ByteArray result(ctr_size, 0x00);
 
-	ByteArray test{ 0x00, 0x00, 0x00, 0x00 };
-	return test;
+	for (unsigned int i = 0; i<ctr_size; ++i)
+		ctr_converted += (int64_t)(start_counter[start_counter.size() - i - 1]) << 8 * i   & (int64_t)0xFF << 8 * i;
+
+	ctr_converted = ctr_converted + (uint64_t)round;
+
+	for (unsigned int i = 0; i<ctr_size; ++i) {
+		result[i] += (ctr_converted >> (ctr_size - 1 - i) * 8) & (int64_t)0xFF;
+	}
+
+	return result;
 }
 
 // Generate Counters for all Rounds

@@ -96,10 +96,17 @@ __global__ void aes_encryption(unsigned char *SBOX, unsigned char *buffer, unsig
 
 	__syncthreads();
 
-	// Compute the new IV vector
 	short idx, c = 0;
 	unsigned char iv_new[KEY_BLOCK];
+	unsigned char temp[KEY_BLOCK];
 
+	#pragma unroll
+	for (int i = 0; i != KEY_BLOCK; ++i)
+	{
+		iv_new[i] = IV[i];
+	}
+
+	// Compute the new IV vector
 	for (idx = KEY_BLOCK - 1; idx >= 0; idx--)
 	{
 		short shift = (KEY_BLOCK - (idx + 1)) * 8;
@@ -107,15 +114,6 @@ __global__ void aes_encryption(unsigned char *SBOX, unsigned char *buffer, unsig
 		unsigned char op2 = ((id &(0xff << shift)) >> shift);
 		iv_new[idx] = op1 + op2 + c;
 		c = (iv_new[idx] > op1 && iv_new[idx] > op2) ? 0 : 1;
-	}
-
-	// Save actual encryption block
-	unsigned char temp[KEY_BLOCK];
-
-	#pragma unroll
-	for (int i = 0; i != KEY_BLOCK; ++i)
-	{
-		temp[i] = buffer[id + i];
 	}
 
 	// Starting AES Rounds
@@ -134,12 +132,18 @@ __global__ void aes_encryption(unsigned char *SBOX, unsigned char *buffer, unsig
 	key_addition(iv_new, sharedSubKeys, NUM_ROUNDS);
 
 	//XOR the encrypted incremented IV with the buffer block
-	key_addition(iv_new, temp, 0);
+	#pragma unroll 
+	for (int i = 0; i != KEY_BLOCK; ++i)
+	{
+		unsigned char res = iv_new[i] ^ temp[i];
+		iv_new[i] = res;
+	}
 
 	#pragma unroll 
 	for (int i = 0; i != KEY_BLOCK; ++i)
 	{
-		buffer[id + i] = temp[i];
+		unsigned char res = iv_new[i] ^ buffer[id + i];
+		buffer[id + i] = res;
 	}
 }
 
