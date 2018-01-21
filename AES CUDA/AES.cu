@@ -73,78 +73,74 @@ __device__ unsigned char IV[KEY_BLOCK] =
 /*                           MAIN KERNEL                             */
 /*********************************************************************/
 
-__global__ void aes_encryption(unsigned char* SBOX, unsigned char* BufferData, unsigned char* SubKeys)
+__global__ void aes_encryption(unsigned char* SBOX, unsigned char* BufferData, unsigned char* SubKeys, unsigned int width)
 {
 	int id = (blockDim.x * blockIdx.x + threadIdx.x) * KEY_BLOCK;
 
-	__shared__ unsigned char sharedSbox[256];
-	__shared__ unsigned char sharedSubKeys[176];
-
-	// Save values to shared memory
-	if (threadIdx.x == 0)
+	if (id < width)
 	{
-		for (int i = 0; i != 256; ++i)
-		{
-			sharedSbox[i] = SBOX[i];
+		__shared__ unsigned char sharedSbox[256];
+		__shared__ unsigned char sharedSubKeys[176];
 
-			if (i < 176)
+		// Save values to shared memory
+		if (threadIdx.x == 0)
+		{
+			for (int i = 0; i != 256; ++i)
 			{
-				sharedSubKeys[i] = SubKeys[i];
+				sharedSbox[i] = SBOX[i];
+
+				if (i < 176)
+				{
+					sharedSubKeys[i] = SubKeys[i];
+				}
 			}
 		}
-	}
 
-	__syncthreads();
+		__syncthreads();
 
-	// Compute the new IV vector
-	short idx, c = 0;
-	unsigned char iv_new[KEY_BLOCK];
+		// Compute the new IV vector
+		short idx, c = 0;
+		unsigned char new_iv[KEY_BLOCK];
 
-	for (idx = KEY_BLOCK - 1; idx >= 0; idx--)
-	{
-		short shift = (KEY_BLOCK - (idx + 1)) * 8;
-		unsigned char op1 = IV[idx];
-		unsigned char op2 = ((id &(0xff << shift)) >> shift);
-		iv_new[idx] = op1 + op2 + c;
-		c = (iv_new[idx] > op1 && iv_new[idx] > op2) ? 0 : 1;
-	}
+		if (id > 0)
+		{
+			for (idx = KEY_BLOCK - 1; idx >= 0; idx--)
+			{
+				short shift = (KEY_BLOCK - (idx + 1)) * 8;
+				unsigned char op1 = IV[idx];
+				unsigned char op2 = ((id &(0xff << shift)) >> shift);
+				new_iv[idx] = op1 + op2 + c;
+				c = (new_iv[idx] > op1 && new_iv[idx] > op2) ? 0 : 1;
+			}
+		}
 
-	// Save actual encryption block
-	unsigned char internBuffer[KEY_BLOCK];
+		int round = 0;
 
-	#pragma unroll
-	for (int i = 0; i != KEY_BLOCK; ++i)
-	{
-		internBuffer[i] = BufferData[id + i];
-	}
+		// Key-Add before round 1 (R0)
+		key_addition(new_iv, sharedSubKeys, round);
+		round = 1;
 
-	// Starting AES Rounds
-	key_addition(iv_new, sharedSubKeys, 0);
+		// Round 1 to NUM_ROUNDS - 1 (R1 to R9)
+		for (round; round != NUM_ROUNDS; ++round)
+		{
+			byte_sub(new_iv, sharedSbox);
+			shift_rows(new_iv);
+			mix_columns(new_iv);
+			key_addition(new_iv, sharedSubKeys, round);
+		}
 
-	for (int i = 1; i != NUM_ROUNDS; ++i)
-	{
-		byte_sub(iv_new, sharedSbox);
-		shift_rows(iv_new);
-		mix_columns(iv_new);
-		key_addition(iv_new, sharedSubKeys, i);
-	}
+		// Last round without Mix-Column (RNUM_ROUNDS)
+		round = NUM_ROUNDS;
+		byte_sub(new_iv, sharedSbox);
+		shift_rows(new_iv);
+		key_addition(new_iv, sharedSubKeys, round);
 
-	byte_sub(iv_new, sharedSbox);
-	shift_rows(iv_new);
-	key_addition(iv_new, sharedSubKeys, NUM_ROUNDS);
-
-	//XOR the encrypted incremented IV with the internBuffer block
-	#pragma unroll 
-	for (int i = 0; i != KEY_BLOCK; ++i)
-	{
-		unsigned char res = iv_new[i] ^ internBuffer[i];
-		res = internBuffer[i];
-	}
-
-	#pragma unroll 
-	for (int i = 0; i != KEY_BLOCK; ++i)
-	{
-		BufferData[id + i] = internBuffer[i];
+		//XOR the encrypted incremented IV with the buffer block
+		#pragma unroll 
+		for (int i = 0; i != KEY_BLOCK; ++i)
+		{
+			BufferData[id + i] ^= new_iv[i];
+		}
 	}
 }
 
@@ -153,48 +149,70 @@ __global__ void aes_encryption(unsigned char* SBOX, unsigned char* BufferData, u
 /*********************************************************************/
 
 // Key Addition Kernel
-__device__ void key_addition(unsigned char *internBuffer, unsigned char *key, const unsigned int &round)
+__device__ void key_addition(unsigned char *buffer, unsigned char *key, const unsigned int &round)
 {
 	#pragma unroll 
 	for (int i = 0; i != KEY_BLOCK; ++i)
 	{
-		internBuffer[i] = internBuffer[i] ^ key[(KEY_BLOCK * round) + i];
+		buffer[i] = buffer[i] ^ key[(KEY_BLOCK * round) + i];
 	}
 }
 
 // byte substitution (S-Boxes)
-__device__ void byte_sub(unsigned char *internBuffer, unsigned char *sharedSbox)
+__device__ void byte_sub(unsigned char *buffer, unsigned char *sharedSbox)
 {
 	#pragma unroll 
 	for (int i = 0; i != KEY_BLOCK; ++i)
 	{
-		internBuffer[i] = sharedSbox[internBuffer[i]];
+		buffer[i] = sharedSbox[buffer[i]];
 	}
 }
 
 // Shift rows
-__device__ void shift_rows(unsigned char *internBuffer)
+__device__ void shift_rows(unsigned char *buffer)
 {
 	unsigned char j;
 
-	j = internBuffer[1];
-	internBuffer[1] = internBuffer[5];
-	internBuffer[5] = internBuffer[9];
-	internBuffer[9] = internBuffer[13];
-	internBuffer[13] = j;
+	j = buffer[1];
+	buffer[1] = buffer[5];
+	buffer[5] = buffer[9];
+	buffer[9] = buffer[13];
+	buffer[13] = j;
 
-	j = internBuffer[2];
-	internBuffer[2] = internBuffer[10];
-	internBuffer[10] = j;
-	j = internBuffer[6];
-	internBuffer[6] = internBuffer[14];
-	internBuffer[14] = j;
+	j = buffer[2];
+	buffer[2] = buffer[10];
+	buffer[10] = j;
+	j = buffer[6];
+	buffer[6] = buffer[14];
+	buffer[14] = j;
 
-	j = internBuffer[15];
-	internBuffer[15] = internBuffer[11];
-	internBuffer[11] = internBuffer[7];
-	internBuffer[7] = internBuffer[3];
-	internBuffer[3] = j;
+	j = buffer[15];
+	buffer[15] = buffer[11];
+	buffer[11] = buffer[7];
+	buffer[7] = buffer[3];
+	buffer[3] = j;
+}
+
+// Pre Mix Column 
+__device__ void aes_MixColumns(unsigned char *buffer) 
+{
+	int i, j;
+	unsigned char column[4];
+
+	for (i = 0; i != 4; ++i) 
+	{
+		for (j = 0; j != 4; ++j) 
+		{
+			column[j] = buffer[(i * 4) + j];
+		}
+
+		mix_columns(column);
+
+		for (j = 0; j != 4; ++j) 
+		{
+			buffer[(i * 4) + j] = column[j];
+		}
+	}
 }
 
 // Mix column

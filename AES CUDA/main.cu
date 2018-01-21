@@ -53,7 +53,7 @@ void counter_launch_kernel(unsigned char *messages, unsigned char *results, unsi
 	// Define launch config
 	int chunks = filesize / KEY_BLOCK;
 	int ThreadsPerBlock = THREADS_PER_BLOCK;
-	int Blocks = chunks / ThreadsPerBlock;
+	int Blocks = ceil(chunks / ThreadsPerBlock);
 
 	// Results to device memory
 	unsigned char *d_results;
@@ -74,7 +74,7 @@ void counter_launch_kernel(unsigned char *messages, unsigned char *results, unsi
 	{
 		GpuTimer timer;
 		timer.Start();
-		aes_encryption << <Blocks, ThreadsPerBlock >> > (d_sbox, d_results, d_keys);
+		aes_encryption << <Blocks, ThreadsPerBlock >> > (d_sbox, d_results, d_keys, message_size);
 		cudaThreadSynchronize();
 		cudaDeviceSynchronize();
 		timer.Stop();
@@ -93,7 +93,7 @@ void counter_launch_kernel(unsigned char *messages, unsigned char *results, unsi
 
 int main()
 {
-	for (int i = 6; i > 0; i--)
+	for (int i = 6; i > 5; i--)
 	{
 		cout << endl << "Text" << i;
 		string file_path_key = "C:/Users/Jan/Dropbox/Master AI/Parallel Computing/Project/key.txt";
@@ -126,6 +126,27 @@ int main()
 		// Starting Decryption
 		cout << endl << "Starting AES CUDA - INVERSE COUNTER MODE KERNEL " << endl;
 		counter_launch_kernel(encrypted_solution, decrypted_solution, keys, filesize, filesize);
+
+		cout << "Plain: " << endl;
+
+		for (int i = 0; i != 16; ++i)
+		{
+			cout << std::dec << (int)plaintexts[i];
+		}
+
+		cout << "Enc: " << endl;
+
+		for (int i = 0; i != 16; ++i)
+		{
+			cout << std::dec << (int) encrypted_solution[i];
+		}
+
+		cout << "Dec: " << endl;
+
+		for (int i = 0; i != 16; ++i)
+		{
+			cout << std::dec << (int)decrypted_solution[i];
+		}
 
 		// Checking if Decryption of Encryption is the plaintext
 		cout << endl << "Legit solution: " << check_byte_arrays(plaintexts, decrypted_solution, filesize) << endl;
