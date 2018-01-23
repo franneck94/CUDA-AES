@@ -313,3 +313,4 @@ Debug/
 *.vcxproj
 *.filters
 Release/
+*.vcxproj.filters
