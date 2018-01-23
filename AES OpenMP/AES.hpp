@@ -10,22 +10,9 @@
 #include "Table.hpp"
 
 #define AES_BITS 128
-
-#if AES_BITS == 128  
-	#define NUM_ROUNDS 10
-	#define SUB_KEYS (NUM_ROUNDS + 1)
-	#define KEY_BLOCK 16
-#endif  
-#if AES_BITS == 192  
-	#define NUM_ROUNDS 12
-	#define SUB_KEYS (NUM_ROUNDS + 1)
-	#define KEY_BLOCK 24
-#endif  
-#if AES_BITS == 256 
-	#define NUM_ROUNDS 14
-	#define SUB_KEYS (NUM_ROUNDS + 1)
-	#define KEY_BLOCK 32
-#endif   
+#define NUM_ROUNDS 10
+#define SUB_KEYS (NUM_ROUNDS + 1)
+#define KEY_BLOCK 16  
 
 typedef std::vector<unsigned char> ByteArray;
 using std::vector;

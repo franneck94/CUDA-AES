@@ -101,10 +101,7 @@ void AES::key_schedule()
 			m_subkeys[r] = m_key;
 		else
 		{
-			if (AES_BITS == 128)
-				m_subkeys[r] = sub_key128(m_subkeys[r - 1], r - 1);
-			else
-				cout << "TODO! 192-bit and 256-bit not implemented yet." << endl;
+			m_subkeys[r] = sub_key128(m_subkeys[r - 1], r - 1);
 		}
 	}
 }

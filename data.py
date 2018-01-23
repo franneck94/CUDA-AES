@@ -10,14 +10,14 @@ test_sizes = [7, 11, 23, 40, 58, 78]
 
 serial = [229, 358, 706, 1211, 1771, 2344]
 openmp_best = [36, 57, 116, 197, 287, 381] # 12 Threads
-cuda_best = [0.404378, 0.645216, 1.19008, 2.07104, 2.90038, 3.86745] # 1024 Threads
+cuda_best = [1.6514, 2.45852, 4.73334, 7.96846, 9.8562, 13.009] # 1024 Threads
 
 plt.plot(test_sizes, serial, color="black")
 plt.plot(test_sizes, openmp_best, color="blue")
 plt.plot(test_sizes, cuda_best, color="red")
 
 plt.legend(['Serial', 'OpenMP (12 Threads)', 'CUDA (1024 Threads)'], prop=fontP, loc=2)
-plt.title('Comparison of Serial vs. OpenMP vs. CUDA')
+plt.title('Comparison of Serial vs. OpenMP vs. CUDA\nCPU: i7-8700k and GeForce GTX 1060')
 plt.xlabel('Test Size (MB)')
 plt.ylabel('Duration of Encryption (ms)')
 
@@ -37,7 +37,7 @@ plt.plot(test_sizes, _6, color="blue")
 plt.plot(test_sizes, _8, color="green")
 
 plt.legend(['2 Threads', '4 Threads', '6 Threads', '8 Threads'], prop=fontP, loc=2)
-plt.title('OpenMP Comparison')
+plt.title('OpenMP Comparison\nCPU: i7-8700k and GeForce GTX 1060')
 plt.xlabel('Test Size (MB)')
 plt.ylabel('Duration of Encryption (ms)')
 
@@ -59,27 +59,29 @@ plt.plot(test_sizes, _16, color="yellow")
 plt.plot(test_sizes, _18, color="green")
 
 plt.legend(['10 Threads', '12 Threads', '14 Threads', '15 Threads', '18 Threads'], prop=fontP, loc=2)
-plt.title('OpenMP Comparison')
+plt.title('OpenMP Comparison\nCPU: i7-8700k and GeForce GTX 1060')
 plt.xlabel('Test Size (MB)')
 plt.ylabel('Duration of Encryption (ms)')
 
 plt.savefig("fig3.png")
 plt.show()
 
-######## CUDA ##########
+######## CUDA Without Shared ##########
 
-_128 = [1.35926, 2.06858, 4.08821, 6.84288, 9.31779, 13.5242]
-_256 = [0.697955, 1.02881, 2.10596, 3.52799, 4.64189, 6.87462]
-_512 = [0.423213, 0.651469, 1.20618, 2.08589, 3.02255, 4.00558]
-_1024 = [0.404378, 0.645216, 1.19008, 2.07104, 2.90038, 3.86745]
+_512_without = [6.106, 9.427, 18.735, 26.117, 37.787, 55.945]
+_128 = [2.16699, 3.46552, 6.52227, 11.6418, 15.9991, 19.9368]
+_256 = [1.87207, 2.56041, 5.02825, 8.20777, 11.7854, 15.5998]
+_512 = [1.63174, 2.48218, 4.75925, 7.95517, 11.4969, 14.8531]
+_1024 = [1.6514, 2.45852, 4.73334, 7.96846, 9.8562, 13.009]
 
+plt.plot(test_sizes, _512_without, color="orange")
 plt.plot(test_sizes, _128, color="green")
 plt.plot(test_sizes, _256, color="red")
 plt.plot(test_sizes, _512, color="blue")
 plt.plot(test_sizes, _1024, color="black")
 
-plt.legend(['128 Threads', '256 Threads', '512 Threads', '1024 Threads'], prop=fontP, loc=2)
-plt.title('CUDA Comparison (Threads/Block)')
+plt.legend(['512 (Without)', '128 Threads', '256 Threads', '512 Threads', '1024 Threads'], prop=fontP, loc=2)
+plt.title('CUDA Comparison (Threads/Block)\nCPU: i7-8700k and GeForce GTX 1060')
 plt.xlabel('Test Size (MB)')
 plt.ylabel('Duration of Encryption (ms)')
 

@@ -24,6 +24,7 @@ using std::string;
 
 #define THREADS_PER_BLOCK 1024
 #define ROUNDS 10
+#define SHARED false
 
 /*********************************************************************/
 /*                       GPU HELPER FUNCTIONS                        */
@@ -55,6 +56,11 @@ void counter_launch_kernel(unsigned char *messages, unsigned char *results, unsi
 	int ThreadsPerBlock = THREADS_PER_BLOCK;
 	int Blocks = ceil(chunks / ThreadsPerBlock);
 
+	// Messages to device memory
+	unsigned char *d_messages;
+	gpuErrchk(cudaMalloc((void **)&d_messages, message_size * sizeof(unsigned char)));
+	gpuErrchk(cudaMemcpy(d_messages, messages, message_size * sizeof(unsigned char), cudaMemcpyHostToDevice));
+
 	// Results to device memory
 	unsigned char *d_results;
 	gpuErrchk(cudaMalloc((void **)&d_results, message_size * sizeof(unsigned char)));
@@ -62,8 +68,11 @@ void counter_launch_kernel(unsigned char *messages, unsigned char *results, unsi
 
 	// SBOX to device memory
 	unsigned char *d_sbox;
-	gpuErrchk(cudaMalloc((void **)&d_sbox, 256 * sizeof(unsigned char)));
-	gpuErrchk(cudaMemcpy(d_sbox, h_sbox, 256 * sizeof(unsigned char), cudaMemcpyHostToDevice));
+	if (SHARED == true)
+	{
+		gpuErrchk(cudaMalloc((void **)&d_sbox, 256 * sizeof(unsigned char)));
+		gpuErrchk(cudaMemcpy(d_sbox, h_sbox, 256 * sizeof(unsigned char), cudaMemcpyHostToDevice));
+	}
 
 	// Subkeys to device memory
 	unsigned char *d_keys;
@@ -74,7 +83,16 @@ void counter_launch_kernel(unsigned char *messages, unsigned char *results, unsi
 	{
 		GpuTimer timer;
 		timer.Start();
-		aes_encryption << <Blocks, ThreadsPerBlock >> > (d_sbox, d_results, d_keys, message_size);
+
+		if (SHARED == true)
+		{
+			aes_encryption_shared << <Blocks, ThreadsPerBlock >> > (d_messages, d_results, d_sbox, d_keys, message_size);
+		}
+		else
+		{
+			aes_encryption << <Blocks, ThreadsPerBlock >> > (d_messages, d_results, d_keys, message_size);
+		}
+
 		cudaThreadSynchronize();
 		cudaDeviceSynchronize();
 		timer.Stop();
@@ -85,6 +103,13 @@ void counter_launch_kernel(unsigned char *messages, unsigned char *results, unsi
 
 	gpuErrchk(cudaMemcpy(results, d_results, message_size * sizeof(unsigned char), cudaMemcpyDeviceToHost));
 	gpuErrchk(cudaFree(d_results));
+	gpuErrchk(cudaFree(d_messages));
+	gpuErrchk(cudaFree(d_keys));
+
+	if (SHARED == true)
+	{
+		gpuErrchk(cudaFree(d_sbox));
+	}
 }
 
 /*********************************************************************/

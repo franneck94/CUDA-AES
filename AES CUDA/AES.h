@@ -33,7 +33,8 @@ __device__ void key_addition(unsigned char *block_biffer, unsigned char *key, co
 /*                          KERNEL DECLARATIONS                      */
 /*********************************************************************/
 
-__global__ void aes_encryption(unsigned char *SBOX, unsigned char *buffer, unsigned char *SubKeys, unsigned int width);
+__global__ void aes_encryption_shared(unsigned char *message, unsigned char *result, unsigned char *sbox, unsigned char *keys, unsigned int width);
+__global__ void aes_encryption(unsigned char *message, unsigned char *result, unsigned char *keys, unsigned int width);
 
 /*********************************************************************/
 /*                        HOST KEY FUNCTIONS                         */
