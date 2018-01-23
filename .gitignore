@@ -310,3 +310,6 @@ x64/
 Debug/
 *.VC
 *.opendb
+*.vcxproj
+*.filters
+Release/
